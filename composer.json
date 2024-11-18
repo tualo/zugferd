@@ -1,0 +1,22 @@
+{
+    "name": "tualo/zugferd",
+    "description": "tualo - zugferd",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Thomas Hoffmann",
+            "email": "thomas.hoffmann@tualo.de"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Tualo\\Office\\Zugferd\\": "src/"
+        },
+        "files": ["src/functions.php"]
+    },
+    "minimum-stability": "dev",
+    "require": {
+        "easybill/zugferd-php":"*"
+    }
+}
