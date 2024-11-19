@@ -211,8 +211,10 @@ class XML implements IRoute{
                 $summation->totalPrepaidAmount = Amount::create('0.00');
                 $summation->duePayableAmount = Amount::create('529.87');
 
-                
+                $xml = Builder::create()->transform($invoice);
+                //$xml = Builder::create()->getXML($invoice);
                 App::result('data',$data);
+                App::result('xml',$xml);
                 App::result('success', true);
         }catch(\Exception $e){
             App::result('last_sql', $db->last_sql );
