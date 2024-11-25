@@ -17,6 +17,7 @@
     },
     "minimum-stability": "dev",
     "require": {
-        "easybill/zugferd-php":"*"
+        "easybill/zugferd-php":"*",
+        "horstoeko/zugferd": "*"
     }
 }
