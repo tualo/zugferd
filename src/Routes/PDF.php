@@ -15,7 +15,8 @@ use horstoeko\zugferd\ZugferdDocumentBuilder;
 use horstoeko\zugferd\ZugferdDocumentPdfBuilder;
 use horstoeko\zugferd\ZugferdProfiles;
 use horstoeko\zugferd\codelists\ZugferdInvoiceType;
-
+use Tualo\Office\FAX\Routes\PUG;
+use Tualo\Office\PUG\PUG2;
 
 class PDF implements IRoute
 {
@@ -154,6 +155,9 @@ class PDF implements IRoute
                 */
                 $document->writeFile(App::get('tempPath'). "/factur-x.xml");
                 echo (file_get_contents(App::get('tempPath'). "/factur-x.xml")); 
+                $pug = new PUG2($db);
+                $pug->render($matches['template'], $data);
+                
                 exit();
                 // Alternatively, you can also return the merged output (existing original and XML) as a binary string
                 $pdfBuilder = new ZugferdDocumentPdfBuilder($document, "/tmp/existingprintlayout.pdf");
