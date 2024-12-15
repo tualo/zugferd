@@ -72,9 +72,10 @@ class XML implements IRoute{
                 $invoice->exchangedDocumentContext->documentContextParameter->id = Builder::GUIDELINE_SPECIFIED_DOCUMENT_CONTEXT_ID_XRECHNUNG;
         
                 $invoice->exchangedDocument = new ExchangedDocument();
-                $invoice->exchangedDocument->id = '471102';
+                $invoice->exchangedDocument->id = $data['id'];
                 $invoice->exchangedDocument->typeCode = '380';
-                $invoice->exchangedDocument->issueDateTime = DateTime::create(102, '20180305');
+                $invoice->exchangedDocument->issueDateTime = DateTime::create(102, str_replace('-','', $data['date']));
+                
                 $invoice->exchangedDocument->notes[] = Note::create('Rechnung gemäß Bestellung vom 01.03.2018.');
                 $invoice->exchangedDocument->notes[] = Note::create('Lieferant GmbH
                     Lieferantenstraße 20
@@ -212,6 +213,7 @@ class XML implements IRoute{
                 $summation->duePayableAmount = Amount::create('529.87');
 
                 $xml = Builder::create()->transform($invoice);
+                echo $xml; exit();
                 //$xml = Builder::create()->getXML($invoice);
                 App::result('data',$data);
                 App::result('xml',$xml);
