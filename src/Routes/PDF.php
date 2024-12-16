@@ -15,6 +15,7 @@ use horstoeko\zugferd\ZugferdDocumentBuilder;
 use horstoeko\zugferd\ZugferdDocumentPdfBuilder;
 use horstoeko\zugferd\ZugferdProfiles;
 use horstoeko\zugferd\codelists\ZugferdInvoiceType;
+use horstoeko\zugferd\codelists\ZugferdUnitCodes;
 use Tualo\Office\FAX\Routes\PUG;
 use Tualo\Office\PUG\PUG2;
 
@@ -33,7 +34,9 @@ class PDF implements IRoute
                 $data = R::get($type, $matches['id']);
                 if (is_null($data)) throw new \Exception('Report not found');
 
-                //print_r($data); exit();
+
+
+
 
                 // Create an empty invoice document in the EN16931 profile
                 $document = ZugferdDocumentBuilder::CreateNew(ZugferdProfiles::PROFILE_EN16931)
@@ -78,7 +81,7 @@ class PDF implements IRoute
                     $data['taxes'] = json_decode($data['taxes'],true);
             
                 foreach( $data['tax_registration'] as $index=>$item) {
-                    $document->addDocumentSellerTaxRegistration($item['type'], $item['value']);
+                    $document->addDocumentSellerTaxRegistration($index, $item);
                 }
 
                 foreach( $data['seller_global_ids'] as $type=>$value) {
@@ -86,8 +89,9 @@ class PDF implements IRoute
                 }
 
                 if (isset($data['seller_information'])){
-                    if (isset($data['seller_information']['name']) && isset($data['seller_id']))
-                        $document->setDocumentSeller($data['seller_information']['name'], $data['seller_id']);
+                    if (isset($data['seller_information']['line1']) && isset($data['seller_information']['id']))
+                        $document->setDocumentSeller($data['seller_information']['line1'], $data['seller_information']['id']);
+
                     $document->setDocumentSellerAddress(
 
                         isset($data['seller_information']['line1'])? $data['seller_information']['line1']:'',
@@ -101,11 +105,15 @@ class PDF implements IRoute
                 }
 
                 if (isset($data['buyer_information'])){
-                    if (isset($data['buyer_information']['name']) && isset($data['seller_id']))
-                        $document->setDocumentBuyer($data['buyer_information']['name'], $data['seller_id']);
+
+
+                    if (isset($data['buyer_information']['line1']) && isset($data['referencenr']))
+                        $document->setDocumentBuyer($data['buyer_information']['line1'], $data['referencenr']);
+                    
+
                     $document->setDocumentBuyerAddress(
 
-                        isset($data['buyer_information']['line1'])? $data['buyer_information']['line1']:'',
+                        isset($data['buyer_information']['line1'])? $data['buyer_information']['line1']:'S',
                         isset($data['buyer_information']['line2'])? $data['buyer_information']['line2']:'',
                         isset($data['buyer_information']['line3'])? $data['buyer_information']['line3']:'',
                         isset($data['buyer_information']['postcode'])? $data['buyer_information']['postcode']:'',
@@ -134,7 +142,7 @@ class PDF implements IRoute
 
                 foreach( $data['positions'] as $position) {
 
-                    $document->addNewPosition("1")
+                    $document->addNewPosition($position['position'])
                     ->setDocumentPositionProductDetails(
                         $position['article'],
                         // $position['note'],
@@ -154,7 +162,7 @@ class PDF implements IRoute
                 $pdfBuilder->generateDocument()->saveDocument("/tmp/merged.pdf");
                 */
                 $document->writeFile(App::get('tempPath'). "/factur-x.xml");
-                echo (file_get_contents(App::get('tempPath'). "/factur-x.xml")); 
+                // echo (file_get_contents(App::get('tempPath'). "/factur-x.xml")); 
                 $pug = new PUG2($db);
                 $pug->render($matches['template'], $data);
                 
