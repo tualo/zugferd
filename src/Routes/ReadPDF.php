@@ -20,7 +20,7 @@ use horstoeko\zugferd\codelists\ZugferdUnitCodes;
 use Tualo\Office\FAX\Routes\PUG;
 use Tualo\Office\PUG\PUG2;
 
-class ReadPDF implements IRoute
+class ReadPDF extends \Tualo\Office\Basic\RouteWrapper
 {
     public static function register()
     {
