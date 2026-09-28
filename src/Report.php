@@ -500,6 +500,6 @@ class Report
             'embedded_xml' => $embeddedXml,
             'valid' => true,
         ]);*/
-        return $pdfRawData;
+        return $pdfData;
     }
 }
