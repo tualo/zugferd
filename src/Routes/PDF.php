@@ -60,7 +60,6 @@ class PDF extends \Tualo\Office\Basic\RouteWrapper
                 if (isset($pdfRawData['filename']) && file_exists($pdfRawData['filename'])) {
                     $pdfData = file_get_contents($pdfRawData['filename']);
                     $pdfFile = $pdfRawData['filename'];
-                    unlink($pdfRawData['filename']);
                 }
 
                 $xml = \Tualo\Office\Zugferd\Report::get($type, $id);
@@ -77,6 +76,9 @@ class PDF extends \Tualo\Office\Basic\RouteWrapper
                         $pdfData = file_get_contents($embeddedPdfFile);
                         $embeddedXml = true;
                     }
+                }
+                if (isset($pdfFile) && file_exists($pdfFile)) {
+                    unlink($pdfFile);
                 }
 
                 App::result('success', true);
