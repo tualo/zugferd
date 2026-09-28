@@ -148,7 +148,14 @@ class XML extends \Tualo\Office\Basic\RouteWrapper
                         $sellerEmail->uriid = Id::create($sellerInformation['contact_email'], $sellerInformation['electronic_scheme'] ?? null);
                         $sellerContact->emailURIUniversalCommunication = $sellerEmail;
                     }
-                    $sellerTradeParty->definedTradeContact[] = $sellerContact;
+                    $contactProperty = new \ReflectionProperty($sellerTradeParty, 'definedTradeContact');
+                    if ((string) $contactProperty->getType() === 'array') {
+                        $contacts = $contactProperty->getValue($sellerTradeParty);
+                        $contacts[] = $sellerContact;
+                        $contactProperty->setValue($sellerTradeParty, $contacts);
+                    } else {
+                        $contactProperty->setValue($sellerTradeParty, $sellerContact);
+                    }
                 }
 
                 foreach (($data['tax_registration'] ?? []) as $schemeID => $registrationID) {
