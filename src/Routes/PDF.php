@@ -27,7 +27,7 @@ class PDF extends \Tualo\Office\Basic\RouteWrapper
         file_put_contents($xmlFile, $xmlContent);
 
         $cmd = sprintf(
-            '%s --replace-input --add-attachment %s --filename=factur-x.xml --mimetype=application/xml -- %s >/dev/null 2>&1',
+            '%s --replace-input --add-attachment %s --key=factur-x.xml --filename=factur-x.xml --mimetype=application/xml -- %s >/dev/null 2>&1',
             escapeshellarg($qpdf),
             escapeshellarg($xmlFile),
             escapeshellarg($pdfFile)
