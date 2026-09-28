@@ -57,10 +57,68 @@ use PHPUnit\Framework\TestCase;
 
 class Report
 {
+    private static function normalizeAddressValue(mixed $value): ?string
+    {
+        if ($value === null) return null;
+        $value = trim((string) $value);
+        if ($value === '') return null;
+        return $value;
+    }
+
+    private static function unwrapData(array $data): array
+    {
+        if (isset($data['data']) && is_array($data['data'])) {
+            return $data['data'];
+        }
+        return $data;
+    }
+
+    private static function parseAddressInfo(array $data, string $prefix = 'buyer'): array
+    {
+        $base = [];
+        $addressText = trim((string) ($data['address'] ?? ''));
+        if ($addressText !== '') {
+            $lines = preg_split('/\r\n|\r|\n/', $addressText);
+            $clean = [];
+            foreach ($lines as $line) {
+                $line = trim((string) $line);
+                if ($line !== '') $clean[] = $line;
+            }
+
+            if (count($clean) >= 1) {
+                $base['line1'] = $clean[0];
+            }
+            if (count($clean) >= 2) {
+                $base['line2'] = $clean[1];
+            }
+            if (count($clean) >= 3) {
+                $base['line3'] = $clean[2];
+            }
+            if (count($clean) >= 4) {
+                $match = preg_match('/^(\d{4,5})\s+(.+)$/u', $clean[count($clean) - 1], $m);
+                if ($match === 1) {
+                    $base['postcode'] = $m[1];
+                    $base['city'] = $m[2];
+                } else {
+                    $base['city'] = $clean[count($clean) - 1];
+                }
+            }
+        }
+
+        return array_merge([
+            'line1' => '',
+            'line2' => '',
+            'line3' => '',
+            'postcode' => '',
+            'city' => '',
+            'country' => 'DE',
+        ], $base, $data[$prefix . '_information'] ?? []);
+    }
+
     public static function get(string $type, int $id): string
     {
 
-        $data = R::get($type, $id);
+        $data = self::unwrapData(R::get($type, $id));
         if (is_null($data)) throw new \Exception('Report not found');
         $invoice = new CrossIndustryInvoice();
         $invoice->exchangedDocumentContext = new ExchangedDocumentContext();
@@ -73,7 +131,7 @@ class Report
         $invoice->exchangedDocument->issueDateTime = DateTime::create(102, str_replace('-', '', $data['date']));
 
         $invoice->supplyChainTradeTransaction = new SupplyChainTradeTransaction();
-        foreach ($data['positions'] as $position) {
+        foreach (($data['positions'] ?? []) as $position) {
             $item = new SupplyChainTradeLineItem();
             $item->associatedDocumentLineDocument = DocumentLineDocument::create((string) $position['position']);
 
@@ -106,15 +164,15 @@ class Report
         $agreement = new HeaderTradeAgreement();
         $agreement->buyerReference = (string) $data['referencenr'];
 
-        $sellerInformation = $data['seller_information'] ?? [];
+        $sellerInformation = self::parseAddressInfo($data, 'seller');
         $sellerTradeParty = new TradeParty();
         $sellerTradeParty->name = trim(str_replace(["\r", "\n"], ' ', (string) ($sellerInformation['line1'] ?? '')));
         $sellerTradeParty->postalTradeAddress = new TradeAddress();
-        $sellerTradeParty->postalTradeAddress->postcodeCode = $sellerInformation['postcode'] ?? null;
-        $sellerTradeParty->postalTradeAddress->lineOne = $sellerInformation['line3'] ?? null;
-        $sellerTradeParty->postalTradeAddress->lineTwo = $sellerInformation['line2'] ?? null;
-        $sellerTradeParty->postalTradeAddress->cityName = $sellerInformation['city'] ?? null;
-        $sellerTradeParty->postalTradeAddress->countryID = $sellerInformation['country'] ?? 'DE';
+        $sellerTradeParty->postalTradeAddress->postcodeCode = self::normalizeAddressValue($sellerInformation['postcode'] ?? null);
+        $sellerTradeParty->postalTradeAddress->lineOne = self::normalizeAddressValue($sellerInformation['line3'] ?? $sellerInformation['line1'] ?? null);
+        $sellerTradeParty->postalTradeAddress->lineTwo = self::normalizeAddressValue($sellerInformation['line2'] ?? null);
+        $sellerTradeParty->postalTradeAddress->cityName = self::normalizeAddressValue($sellerInformation['city'] ?? null);
+        $sellerTradeParty->postalTradeAddress->countryID = strtoupper(self::normalizeAddressValue($sellerInformation['country'] ?? 'DE') ?? 'DE');
 
         if (!empty($sellerInformation['electronic_address'])) {
             $sellerUri = new UniversalCommunication();
@@ -150,15 +208,15 @@ class Report
         }
         $agreement->sellerTradeParty = $sellerTradeParty;
 
-        $buyerInformation = $data['buyer_information'] ?? [];
+        $buyerInformation = self::parseAddressInfo($data, 'buyer');
         $buyerTradeParty = new TradeParty();
         $buyerTradeParty->name = trim(str_replace(["\r", "\n"], ' ', (string) ($buyerInformation['line1'] ?? '')));
         $buyerTradeParty->postalTradeAddress = new TradeAddress();
-        $buyerTradeParty->postalTradeAddress->postcodeCode = $buyerInformation['postcode'] ?? null;
-        $buyerTradeParty->postalTradeAddress->lineOne = $buyerInformation['line3'] ?? null;
-        $buyerTradeParty->postalTradeAddress->lineTwo = $buyerInformation['line2'] ?? null;
-        $buyerTradeParty->postalTradeAddress->cityName = $buyerInformation['city'] ?? null;
-        $buyerTradeParty->postalTradeAddress->countryID = $buyerInformation['country'] ?? 'DE';
+        $buyerTradeParty->postalTradeAddress->postcodeCode = self::normalizeAddressValue($buyerInformation['postcode'] ?? null);
+        $buyerTradeParty->postalTradeAddress->lineOne = self::normalizeAddressValue($buyerInformation['line3'] ?? $buyerInformation['line1'] ?? null);
+        $buyerTradeParty->postalTradeAddress->lineTwo = self::normalizeAddressValue($buyerInformation['line2'] ?? null);
+        $buyerTradeParty->postalTradeAddress->cityName = self::normalizeAddressValue($buyerInformation['city'] ?? null);
+        $buyerTradeParty->postalTradeAddress->countryID = strtoupper(self::normalizeAddressValue($buyerInformation['country'] ?? 'DE') ?? 'DE');
 
         if (!empty($buyerInformation['electronic_address'])) {
             $buyerUri = new UniversalCommunication();
@@ -208,14 +266,15 @@ class Report
                 */
 
         $settlement = new HeaderTradeSettlement();
+        $settlement->taxCurrencyCode = 'EUR';
         $settlement->invoiceCurrencyCode = 'EUR';
-        foreach ($data['taxes'] as $tax) {
+        foreach (($data['taxes'] ?? []) as $tax) {
             $headerTax = new TradeTax();
-            $headerTax->typeCode = $tax['type'];
-            $headerTax->categoryCode = $tax['category'];
-            $headerTax->basisAmount = Amount::create(number_format((float) $tax['net'], 2, '.', ''));
-            $headerTax->calculatedAmount = Amount::create(number_format((float) $tax['tax'], 2, '.', ''));
-            $headerTax->rateApplicablePercent = number_format((float) $tax['rate'], 2, '.', '');
+            $headerTax->typeCode = $tax['type'] ?? 'VAT';
+            $headerTax->categoryCode = $tax['category'] ?? 'S';
+            $headerTax->basisAmount = Amount::create(number_format((float) ($tax['net'] ?? 0), 2, '.', ''));
+            $headerTax->calculatedAmount = Amount::create(number_format((float) ($tax['tax'] ?? 0), 2, '.', ''));
+            $headerTax->rateApplicablePercent = number_format((float) ($tax['rate'] ?? 0), 2, '.', '');
             $settlement->tradeTaxes[] = $headerTax;
         }
         $invoice->supplyChainTradeTransaction->applicableHeaderTradeSettlement = $settlement;
