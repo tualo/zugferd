@@ -67,8 +67,8 @@ class Report
 
     private static function unwrapData(array $data): array
     {
-        if (isset($data['data']) && is_array($data['data'])) {
-            return $data['data'];
+        while (isset($data['data']) && is_array($data['data'])) {
+            $data = $data['data'];
         }
         return $data;
     }
@@ -106,6 +106,9 @@ class Report
         }
 
         $explicit = $data[$prefix . '_information'] ?? [];
+        if (!is_array($explicit)) {
+            $explicit = [];
+        }
         if (!empty($explicit['line1']) && empty($base['line1'])) {
             $base['line1'] = $explicit['line1'];
         }
@@ -147,8 +150,8 @@ class Report
         $xpath = new \DOMXPath($dom);
         $xpath->registerNamespace('ram', 'urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100');
 
-        $sellerInfo = $data['seller_information'] ?? [];
-        $buyerInfo = $data['buyer_information'] ?? [];
+        $sellerInfo = self::parseAddressInfo($data, 'seller');
+        $buyerInfo = self::parseAddressInfo($data, 'buyer');
 
         foreach (
             [
@@ -156,8 +159,8 @@ class Report
                 ['buyer', $buyerInfo],
             ] as [$role, $info]
         ) {
-            $query = sprintf("//*[local-name()=' %sTradeParty ']", $role);
-            $query = sprintf("//*[local-name()='%sTradeParty']", $role);
+            $partyName = ucfirst($role) . 'TradeParty';
+            $query = sprintf("//*[local-name()='%s']", $partyName);
             $party = $xpath->query($query)->item(0);
             if ($party === null) {
                 continue;
