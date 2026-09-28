@@ -1,4 +1,5 @@
 <?php
+
 namespace Tualo\Office\Zugferd\Routes;
 
 use Tualo\Office\Basic\TualoApplication as App;
@@ -52,17 +53,25 @@ use Easybill\ZUGFeRD2\Tests\Traits\AssertXmlOutputTrait;
 use Easybill\ZUGFeRD2\Validator;
 use PHPUnit\Framework\TestCase;
 
-class XML implements IRoute{
-    public static function register(){
+class XML implements IRoute
+{
 
-        Route::add('/zugferd/xml/(?P<type>\w+)/(?P<id>[\w\-]+)',function($matches){
+    public static function scope(): string
+    {
+        return 'basic';
+    }
+
+    public static function register()
+    {
+
+        Route::add('/zugferd/xml/(?P<type>\w+)/(?P<id>[\w\-]+)', function ($matches) {
             $db = App::get('session')->getDB();
-            try{
+            try {
                 $type = $matches['type'];
-                $postdata = json_decode(file_get_contents("php://input"),true);
-                $db->direct('set @currentRequest = {postdata}',['postdata'=>json_encode($postdata)]);
-                if ($matches['id']<0) throw new \Exception('New Report is not allowed');
-                $data = R::get($type,$matches['id']);
+                $postdata = json_decode(file_get_contents("php://input"), true);
+                $db->direct('set @currentRequest = {postdata}', ['postdata' => json_encode($postdata)]);
+                if ($matches['id'] < 0) throw new \Exception('New Report is not allowed');
+                $data = R::get($type, $matches['id']);
                 if (is_null($data)) throw new \Exception('Report not found');
 
 
@@ -70,113 +79,112 @@ class XML implements IRoute{
                 $invoice->exchangedDocumentContext = new ExchangedDocumentContext();
                 $invoice->exchangedDocumentContext->documentContextParameter = new DocumentContextParameter();
                 $invoice->exchangedDocumentContext->documentContextParameter->id = Builder::GUIDELINE_SPECIFIED_DOCUMENT_CONTEXT_ID_XRECHNUNG;
-        
-                $invoice->exchangedDocument = new ExchangedDocument();
-                $invoice->exchangedDocument->id = $data['id'];
-                $invoice->exchangedDocument->typeCode = '380';
-                $invoice->exchangedDocument->issueDateTime = DateTime::create(102, str_replace('-','', $data['date']));
-                
-                $invoice->exchangedDocument->notes[] = Note::create('Rechnung gemäß Bestellung vom 01.03.2018.');
-                $invoice->exchangedDocument->notes[] = Note::create('Lieferant GmbH
-                    Lieferantenstraße 20
-                    80333 München
-                    Deutschland
-                    Geschäftsführer: Hans Muster
-                    Handelsregisternummer: H A 123
-                 ', 'REG');
-        
-                $invoice->supplyChainTradeTransaction = new SupplyChainTradeTransaction();
-                $invoice->supplyChainTradeTransaction->lineItems[] = $item1 = new SupplyChainTradeLineItem();
 
-                $item1->associatedDocumentLineDocument = DocumentLineDocument::create('1');
-        
-                $item1->specifiedTradeProduct = new TradeProduct();
-                $item1->specifiedTradeProduct->name = 'Trennblätter A4';
-                $item1->specifiedTradeProduct->sellerAssignedID = 'TB100A4';
-                $item1->specifiedTradeProduct->globalID = Id::create('4012345001235', '0160');
-        
-                $item1->tradeAgreement = new LineTradeAgreement();
-                $item1->tradeAgreement->netPrice = TradePrice::create('9.9000');
-                $item1->tradeAgreement->grossPrice = TradePrice::create('9.9000');
-        
-                $item1->delivery = new LineTradeDelivery();
-                $item1->delivery->billedQuantity = Quantity::create('20.0000', 'H87');
-        
-                $item1->specifiedLineTradeSettlement = new LineTradeSettlement();
-                $item1->specifiedLineTradeSettlement->tradeTax[] = $item1tax = new TradeTax();
-                $item1tax->typeCode = 'VAT';
-                $item1tax->categoryCode = 'S';
-                $item1tax->rateApplicablePercent = '19.00';
-        
-                $item1->specifiedLineTradeSettlement->monetarySummation = TradeSettlementLineMonetarySummation::create('198.00');
-        
-                $invoice->supplyChainTradeTransaction->lineItems[] = $item2 = new SupplyChainTradeLineItem();
-                $item2->associatedDocumentLineDocument = DocumentLineDocument::create('2');
-        
-                $item2->specifiedTradeProduct = new TradeProduct();
-                $item2->specifiedTradeProduct->name = 'Joghurt Banane';
-                $item2->specifiedTradeProduct->sellerAssignedID = 'ARNR2';
-                $item2->specifiedTradeProduct->globalID = Id::create('4000050986428', '0160');
-        
-                $item2->tradeAgreement = new LineTradeAgreement();
-                $item2->tradeAgreement->netPrice = TradePrice::create('5.5000');
-                $item2->tradeAgreement->grossPrice = TradePrice::create('5.5000');
-        
-                $item2->delivery = new LineTradeDelivery();
-                $item2->delivery->billedQuantity = Quantity::create('50.0000', 'H87');
-        
-                $item2->specifiedLineTradeSettlement = new LineTradeSettlement();
-                $item2->specifiedLineTradeSettlement->tradeTax[] = $item2tax = new TradeTax();
-                $item2tax->typeCode = 'VAT';
-                $item2tax->categoryCode = 'S';
-                $item2tax->rateApplicablePercent = '7.00';
-        
-                $item2->specifiedLineTradeSettlement->monetarySummation = TradeSettlementLineMonetarySummation::create('275.00');
-        
-                $invoice->supplyChainTradeTransaction->applicableHeaderTradeAgreement = new HeaderTradeAgreement();
-                $invoice->supplyChainTradeTransaction->applicableHeaderTradeAgreement->buyerReference = '04011000-12345-34';
-        
-                $invoice->supplyChainTradeTransaction->applicableHeaderTradeAgreement->buyerTradeParty = $buyerTradeParty = new TradeParty();
-                $buyerTradeParty->id = Id::create('1034567');
-                $buyerTradeParty->name = 'Max Mustermann';
-        
-                $invoice->supplyChainTradeTransaction->applicableHeaderTradeAgreement->sellerTradeParty = $sellerTradeParty = new TradeParty();
-                $sellerTradeParty->globalID[] = Id::create('4000001123452', '0088');
-                $sellerTradeParty->name = 'Lieferant GmbH';
-                $sellerTradeParty->definedTradeContact = new TradeContact();
-                $sellerTradeParty->definedTradeContact->personName = 'Max Mustermann';
-                $sellerTradeParty->definedTradeContact->departmentName = 'Muster-Einkauf';
-                $sellerTradeParty->definedTradeContact->telephoneUniversalCommunication = new UniversalCommunication();
-                $sellerTradeParty->definedTradeContact->telephoneUniversalCommunication->completeNumber = '+49891234567';
-                $sellerTradeParty->definedTradeContact->emailURIUniversalCommunication = new UniversalCommunication();
-                $sellerTradeParty->definedTradeContact->emailURIUniversalCommunication->uriid = Id::create('Max@Mustermann.de');
-        
+                $invoice->exchangedDocument = new ExchangedDocument();
+                $invoice->exchangedDocument->id = (string) ($data['document_no'] ?? $data['id']);
+                $invoice->exchangedDocument->typeCode = '380';
+                $invoice->exchangedDocument->issueDateTime = DateTime::create(102, str_replace('-', '', $data['date']));
+
+                $invoice->supplyChainTradeTransaction = new SupplyChainTradeTransaction();
+                foreach ($data['positions'] as $position) {
+                    $item = new SupplyChainTradeLineItem();
+                    $item->associatedDocumentLineDocument = DocumentLineDocument::create((string) $position['position']);
+
+                    $item->specifiedTradeProduct = new TradeProduct();
+                    $item->specifiedTradeProduct->name = trim($position['artikel_text']);
+                    $item->specifiedTradeProduct->sellerAssignedID = (string) $position['article'];
+
+                    $item->tradeAgreement = new LineTradeAgreement();
+                    $item->tradeAgreement->netPrice = TradePrice::create(number_format((float) $position['singleprice'], 4, '.', ''));
+
+                    $item->delivery = new LineTradeDelivery();
+                    $item->delivery->billedQuantity = Quantity::create(
+                        number_format((float) $position['amount'], 4, '.', ''),
+                        $position['einheit_symbol'] ?: 'C62'
+                    );
+
+                    $item->specifiedLineTradeSettlement = new LineTradeSettlement();
+                    $itemTax = new TradeTax();
+                    $itemTax->typeCode = 'VAT';
+                    $itemTax->categoryCode = 'S';
+                    $itemTax->rateApplicablePercent = number_format((float) $position['tax'], 2, '.', '');
+                    $item->specifiedLineTradeSettlement->tradeTax[] = $itemTax;
+                    $item->specifiedLineTradeSettlement->monetarySummation = TradeSettlementLineMonetarySummation::create(
+                        number_format((float) $position['net'], 2, '.', '')
+                    );
+
+                    $invoice->supplyChainTradeTransaction->lineItems[] = $item;
+                }
+
+                $agreement = new HeaderTradeAgreement();
+                $agreement->buyerReference = (string) $data['referencenr'];
+
+                $sellerInformation = $data['seller_information'] ?? [];
+                $sellerTradeParty = new TradeParty();
+                $sellerTradeParty->name = trim(str_replace(["\r", "\n"], ' ', (string) ($sellerInformation['line1'] ?? '')));
                 $sellerTradeParty->postalTradeAddress = new TradeAddress();
-                $sellerTradeParty->postalTradeAddress->postcode = '80333';
-                $sellerTradeParty->postalTradeAddress->lineOne = 'Lieferantenstraße 20';
-                $sellerTradeParty->postalTradeAddress->city = 'München';
-                $sellerTradeParty->postalTradeAddress->countryCode = 'DE';
-        
-                $sellerTradeParty->taxRegistrations[] = TaxRegistration::create('201/113/40209', 'FC');
-                $sellerTradeParty->taxRegistrations[] = TaxRegistration::create('DE123456789', 'VA');
-        
-                $invoice->supplyChainTradeTransaction->applicableHeaderTradeAgreement->buyerTradeParty = $buyerTradeParty = new TradeParty();
-                $buyerTradeParty->id = Id::create('GE2020211');
-                $buyerTradeParty->name = 'Kunden AG Mitte';
-        
+                $sellerTradeParty->postalTradeAddress->postcodeCode = $sellerInformation['postcode'] ?? null;
+                $sellerTradeParty->postalTradeAddress->lineOne = $sellerInformation['line3'] ?? null;
+                $sellerTradeParty->postalTradeAddress->lineTwo = $sellerInformation['line2'] ?? null;
+                $sellerTradeParty->postalTradeAddress->cityName = $sellerInformation['city'] ?? null;
+                $sellerTradeParty->postalTradeAddress->countryID = $sellerInformation['country'] ?? 'DE';
+
+                if (!empty($sellerInformation['electronic_address'])) {
+                    $sellerUri = new UniversalCommunication();
+                    $sellerUri->uriid = Id::create($sellerInformation['electronic_address'], $sellerInformation['electronic_scheme'] ?? null);
+                    $sellerTradeParty->uriUniversalCommunication = $sellerUri;
+                }
+
+                if (!empty($sellerInformation['contact_name']) || !empty($sellerInformation['contact_phone']) || !empty($sellerInformation['contact_email'])) {
+                    $sellerContact = new TradeContact();
+                    $sellerContact->personName = $sellerInformation['contact_name'] ?? null;
+                    if (!empty($sellerInformation['contact_phone'])) {
+                        $sellerPhone = new UniversalCommunication();
+                        $sellerPhone->completeNumber = $sellerInformation['contact_phone'];
+                        $sellerContact->telephoneUniversalCommunication = $sellerPhone;
+                    }
+                    if (!empty($sellerInformation['contact_email'])) {
+                        $sellerEmail = new UniversalCommunication();
+                        $sellerEmail->uriid = Id::create($sellerInformation['contact_email'], $sellerInformation['electronic_scheme'] ?? null);
+                        $sellerContact->emailURIUniversalCommunication = $sellerEmail;
+                    }
+                    $sellerTradeParty->definedTradeContact[] = $sellerContact;
+                }
+
+                foreach (($data['tax_registration'] ?? []) as $schemeID => $registrationID) {
+                    $sellerTradeParty->taxRegistrations[] = TaxRegistration::create($registrationID, $schemeID);
+                }
+                $agreement->sellerTradeParty = $sellerTradeParty;
+
+                $buyerInformation = $data['buyer_information'] ?? [];
+                $buyerTradeParty = new TradeParty();
+                $buyerTradeParty->name = trim(str_replace(["\r", "\n"], ' ', (string) ($buyerInformation['line1'] ?? '')));
                 $buyerTradeParty->postalTradeAddress = new TradeAddress();
-                $buyerTradeParty->postalTradeAddress->postcode = '69876';
-                $buyerTradeParty->postalTradeAddress->lineOne = 'Kundenstraße 15';
-                $buyerTradeParty->postalTradeAddress->city = 'Frankfurt';
-                $buyerTradeParty->postalTradeAddress->countryCode = 'DE';
-        
-                $invoice->supplyChainTradeTransaction->applicableHeaderTradeDelivery = new HeaderTradeDelivery();
-                $invoice->supplyChainTradeTransaction->applicableHeaderTradeDelivery->chainEvent = new SupplyChainEvent();
-                $invoice->supplyChainTradeTransaction->applicableHeaderTradeDelivery->chainEvent->date = DateTime::create(102, '20180305');
-        
-                $invoice->supplyChainTradeTransaction->applicableHeaderTradeSettlement = new HeaderTradeSettlement();
-                $invoice->supplyChainTradeTransaction->applicableHeaderTradeSettlement->currency = 'EUR';
-                $invoice->supplyChainTradeTransaction->applicableHeaderTradeSettlement->specifiedTradeSettlementPaymentMeans[] = $paymentMeans1 = new TradeSettlementPaymentMeans();
+                $buyerTradeParty->postalTradeAddress->postcodeCode = $buyerInformation['postcode'] ?? null;
+                $buyerTradeParty->postalTradeAddress->lineOne = $buyerInformation['line3'] ?? null;
+                $buyerTradeParty->postalTradeAddress->lineTwo = $buyerInformation['line2'] ?? null;
+                $buyerTradeParty->postalTradeAddress->cityName = $buyerInformation['city'] ?? null;
+                $buyerTradeParty->postalTradeAddress->countryID = $buyerInformation['country'] ?? 'DE';
+
+                if (!empty($buyerInformation['electronic_address'])) {
+                    $buyerUri = new UniversalCommunication();
+                    $buyerUri->uriid = Id::create($buyerInformation['electronic_address'], $buyerInformation['electronic_address_scheme'] ?? null);
+                    $buyerTradeParty->uriUniversalCommunication = $buyerUri;
+                }
+
+                $agreement->buyerTradeParty = $buyerTradeParty;
+
+                $invoice->supplyChainTradeTransaction->applicableHeaderTradeAgreement = $agreement;
+
+                $delivery = new HeaderTradeDelivery();
+                $delivery->actualDeliverySupplyChainEvent = new SupplyChainEvent();
+                $delivery->actualDeliverySupplyChainEvent->occurrenceDateTime = DateTime::create(
+                    102,
+                    str_replace('-', '', $data['service_period_stop'] ?? $data['date'])
+                );
+                $invoice->supplyChainTradeTransaction->applicableHeaderTradeDelivery = $delivery;
+
+                /*
                 $paymentMeans1->typeCode = '58';
                 $paymentMeans1->information = 'Zahlung per SEPA Überweisung.';
                 $paymentMeans1->payeePartyCreditorFinancialAccount = new CreditorFinancialAccount();
@@ -184,47 +192,61 @@ class XML implements IRoute{
                 $paymentMeans1->payeePartyCreditorFinancialAccount->AccountName = 'Kunden AG';
                 $paymentMeans1->payeeSpecifiedCreditorFinancialInstitution = new CreditorFinancialInstitution();
                 $paymentMeans1->payeeSpecifiedCreditorFinancialInstitution->bicId = Id::create('BYLADEM1001');
-        
+                */
+
+                /*
                 $invoice->supplyChainTradeTransaction->applicableHeaderTradeSettlement->tradeTaxes[] = $headerTax1 = new TradeTax();
                 $headerTax1->typeCode = 'VAT';
                 $headerTax1->categoryCode = 'S';
                 $headerTax1->basisAmount = Amount::create('275.00');
                 $headerTax1->calculatedAmount = Amount::create('19.25');
                 $headerTax1->rateApplicablePercent = '7.00';
-        
+
                 $invoice->supplyChainTradeTransaction->applicableHeaderTradeSettlement->tradeTaxes[] = $headerTax2 = new TradeTax();
                 $headerTax2->typeCode = 'VAT';
                 $headerTax2->categoryCode = 'S';
                 $headerTax2->basisAmount = Amount::create('198.00');
                 $headerTax2->calculatedAmount = Amount::create('37.62');
                 $headerTax2->rateApplicablePercent = '19.00';
-        
+
                 $invoice->supplyChainTradeTransaction->applicableHeaderTradeSettlement->specifiedTradePaymentTerms[] = $paymentTerms = new TradePaymentTerms();
                 $paymentTerms->description = 'Zahlbar innerhalb 30 Tagen netto bis 04.04.2018, 3% Skonto innerhalb 10 Tagen bis 15.03.2018';
-        
-                $invoice->supplyChainTradeTransaction->applicableHeaderTradeSettlement->specifiedTradeSettlementHeaderMonetarySummation = $summation = new TradeSettlementHeaderMonetarySummation();
-                $summation->lineTotalAmount = Amount::create('473.00');
+                */
+
+                $settlement = new HeaderTradeSettlement();
+                $settlement->invoiceCurrencyCode = 'EUR';
+                foreach ($data['taxes'] as $tax) {
+                    $headerTax = new TradeTax();
+                    $headerTax->typeCode = $tax['type'];
+                    $headerTax->categoryCode = $tax['category'];
+                    $headerTax->basisAmount = Amount::create(number_format((float) $tax['net'], 2, '.', ''));
+                    $headerTax->calculatedAmount = Amount::create(number_format((float) $tax['tax'], 2, '.', ''));
+                    $headerTax->rateApplicablePercent = number_format((float) $tax['rate'], 2, '.', '');
+                    $settlement->tradeTaxes[] = $headerTax;
+                }
+                $invoice->supplyChainTradeTransaction->applicableHeaderTradeSettlement = $settlement;
+                $settlement->specifiedTradeSettlementHeaderMonetarySummation = $summation = new TradeSettlementHeaderMonetarySummation();
+                $summation->lineTotalAmount = Amount::create(number_format((float) $data['net'], 2, '.', ''));
                 $summation->chargeTotalAmount = Amount::create('0.00');
                 $summation->allowanceTotalAmount = Amount::create('0.00');
-                $summation->taxBasisTotalAmount[] = Amount::create('473.00');
-                $summation->taxTotalAmount[] = Amount::create('56.87', 'EUR');
-                $summation->grandTotalAmount[] = Amount::create('529.87');
+                $summation->taxBasisTotalAmount[] = Amount::create(number_format((float) $data['net'], 2, '.', ''));
+                $summation->taxTotalAmount[] = Amount::create(number_format((float) $data['steuer'], 2, '.', ''), 'EUR');
+                $summation->grandTotalAmount[] = Amount::create(number_format((float) $data['gross'], 2, '.', ''));
                 $summation->totalPrepaidAmount = Amount::create('0.00');
-                $summation->duePayableAmount = Amount::create('529.87');
+                $summation->duePayableAmount = Amount::create(number_format((float) $data['open'], 2, '.', ''));
 
                 $xml = Builder::create()->transform($invoice);
-                echo $xml; exit();
+                echo $xml;
+                exit();
                 //$xml = Builder::create()->getXML($invoice);
-                App::result('data',$data);
-                App::result('xml',$xml);
+                App::result('data', $data);
+                App::result('xml', $xml);
                 App::result('success', true);
-        }catch(\Exception $e){
-            App::result('last_sql', $db->last_sql );
-            App::result('msg', $e->getMessage());
-        }
-        App::contenttype('application/json');
-        },array('get'),false);
-
-
+            } catch (\Exception $e) {
+                App::result('last_sql', $db->last_sql);
+                App::result('msg', $e->getMessage());
+            }
+            App::contenttype('application/json');
+        }, array('get'), false);
     }
 }
