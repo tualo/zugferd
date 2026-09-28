@@ -1,3 +1,4 @@
 musterbeleg.json
 *.log
 *.tmp
+vendor

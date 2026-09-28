@@ -53,7 +53,7 @@ use Easybill\ZUGFeRD2\Tests\Traits\AssertXmlOutputTrait;
 use Easybill\ZUGFeRD2\Validator;
 use PHPUnit\Framework\TestCase;
 
-class XML implements IRoute
+class XML extends \Tualo\Office\Basic\RouteWrapper
 {
 
     public static function scope(): string
