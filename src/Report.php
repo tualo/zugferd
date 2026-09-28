@@ -105,6 +105,26 @@ class Report
             }
         }
 
+        $explicit = $data[$prefix . '_information'] ?? [];
+        if (!empty($explicit['line1']) && empty($base['line1'])) {
+            $base['line1'] = $explicit['line1'];
+        }
+        if (!empty($explicit['line2']) && empty($base['line2'])) {
+            $base['line2'] = $explicit['line2'];
+        }
+        if (!empty($explicit['line3']) && empty($base['line3'])) {
+            $base['line3'] = $explicit['line3'];
+        }
+        if (empty($base['postcode']) && !empty($explicit['postcode'])) {
+            $base['postcode'] = $explicit['postcode'];
+        }
+        if (empty($base['city']) && !empty($explicit['city'])) {
+            $base['city'] = $explicit['city'];
+        }
+        if (empty($base['country']) && !empty($explicit['country'])) {
+            $base['country'] = $explicit['country'];
+        }
+
         return array_merge([
             'line1' => '',
             'line2' => '',
@@ -112,7 +132,77 @@ class Report
             'postcode' => '',
             'city' => '',
             'country' => 'DE',
-        ], $base, $data[$prefix . '_information'] ?? []);
+        ], $base, $explicit);
+    }
+
+    private static function ensureXmlRequiredElements(string $xml, array $data): string
+    {
+        $dom = new \DOMDocument('1.0', 'UTF-8');
+        $dom->preserveWhiteSpace = false;
+        $dom->formatOutput = false;
+        if (!@$dom->loadXML($xml)) {
+            return $xml;
+        }
+
+        $xpath = new \DOMXPath($dom);
+        $xpath->registerNamespace('ram', 'urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100');
+
+        $sellerInfo = $data['seller_information'] ?? [];
+        $buyerInfo = $data['buyer_information'] ?? [];
+
+        foreach (
+            [
+                ['seller', $sellerInfo],
+                ['buyer', $buyerInfo],
+            ] as [$role, $info]
+        ) {
+            $query = sprintf("//*[local-name()=' %sTradeParty ']", $role);
+            $query = sprintf("//*[local-name()='%sTradeParty']", $role);
+            $party = $xpath->query($query)->item(0);
+            if ($party === null) {
+                continue;
+            }
+
+            $address = $xpath->query(".//*[local-name()='PostalTradeAddress']", $party)->item(0);
+            if ($address === null) {
+                $address = $dom->createElementNS('urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100', 'ram:PostalTradeAddress');
+                $party->appendChild($address);
+            }
+
+            $countryId = strtoupper(self::normalizeAddressValue($info['country'] ?? 'DE') ?? 'DE');
+            $cityName = self::normalizeAddressValue($info['city'] ?? null);
+            $lineOne = self::normalizeAddressValue($info['line3'] ?? $info['line1'] ?? null);
+            $lineTwo = self::normalizeAddressValue($info['line2'] ?? null);
+
+            if ($cityName !== null && $xpath->query(".//*[local-name()='CityName']", $address)->length === 0) {
+                $address->appendChild($dom->createElementNS('urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100', 'ram:CityName', $cityName));
+            }
+            if ($countryId !== '' && $xpath->query(".//*[local-name()='CountryID']", $address)->length === 0) {
+                $address->appendChild($dom->createElementNS('urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100', 'ram:CountryID', $countryId));
+            }
+            if ($lineOne !== null && $xpath->query(".//*[local-name()='LineOne']", $address)->length === 0) {
+                $address->appendChild($dom->createElementNS('urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100', 'ram:LineOne', $lineOne));
+            }
+            if ($lineTwo !== null && $xpath->query(".//*[local-name()='LineTwo']", $address)->length === 0) {
+                $address->appendChild($dom->createElementNS('urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100', 'ram:LineTwo', $lineTwo));
+            }
+        }
+
+        $settlementNode = $xpath->query("//*[local-name()='ApplicableHeaderTradeSettlement']")->item(0);
+        if ($settlementNode !== null) {
+            $hasInvoiceCurrency = $xpath->query(".//*[local-name()='InvoiceCurrencyCode']", $settlementNode)->length > 0;
+            if (!$hasInvoiceCurrency) {
+                $firstTax = $xpath->query(".//*[local-name()='ApplicableTradeTax']", $settlementNode)->item(0);
+                $invoiceCurrency = $dom->createElementNS('urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100', 'ram:InvoiceCurrencyCode', 'EUR');
+                if ($firstTax !== null) {
+                    $settlementNode->insertBefore($invoiceCurrency, $firstTax);
+                } else {
+                    $settlementNode->appendChild($invoiceCurrency);
+                }
+            }
+        }
+
+        return $dom->saveXML();
     }
 
     public static function get(string $type, int $id): string
@@ -289,7 +379,7 @@ class Report
         $summation->duePayableAmount = Amount::create(number_format((float) $data['open'], 2, '.', ''));
 
         $xml = Builder::create()->transform($invoice);
-        return $xml;
+        return self::ensureXmlRequiredElements($xml, $data);
     }
 
     public static function validate(string $type, string $id, string $tablename, string $template): array
