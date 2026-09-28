@@ -10,6 +10,7 @@ use Tualo\Office\DS\DSTable;
 use Tualo\Office\DS\DSFilter;
 use Tualo\Office\Report\Report as R;
 
+use Tualo\Office\RemoteBrowser\RemotePDF;
 
 
 use Easybill\ZUGFeRD2\Builder;
@@ -230,5 +231,43 @@ class Report
 
         $xml = Builder::create()->transform($invoice);
         return $xml;
+    }
+
+    public static function validate(string $type, string $id, string $tablename, string $template): array
+    {
+
+        $pdfRawData = RemotePDF::get($tablename, $template, $id);
+        if (isset($pdfRawData['filename']) && file_exists($pdfRawData['filename'])) {
+            $pdfData = file_get_contents($pdfRawData['filename']);
+            unlink($pdfRawData['filename']);
+        } else {
+            $pdfData = null;
+        }
+
+        $xml = \Tualo\Office\Zugferd\Report::get($type, $id);
+
+        $validator = new Validator();
+        $validationError = $validator->validateAgainstXsd($xml, Validator::SCHEMA_EN16931);
+        if ($validationError !== null) {
+            throw new \Exception('Ungültige ZUGFeRD-Rechnung: ' . $validationError);
+        }
+
+        /*
+        App::result('success', true);
+        App::result('pdf_rowdata', $pdfRawData);
+        App::result('pdf_data', $pdfData !== null ? base64_encode($pdfData) : null);
+        App::result('pdf_contenttype', $pdfRawData['contenttype'] ?? 'application/pdf');
+        App::result('xml_data', $xml);
+        App::result('invoice', [
+            'pdf' => $pdfRawData,
+            'xml' => $xml,
+            'valid' => true,
+        ]);
+        */
+        return [
+            'pdf' => $pdfRawData,
+            'xml' => $xml,
+            'valid' => true,
+        ];
     }
 }
