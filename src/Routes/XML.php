@@ -27,7 +27,8 @@ class XML extends \Tualo\Office\Basic\RouteWrapper
 
                 $xml = \Tualo\Office\Zugferd\Report::get($type, $matches['id']);
 
-                App::result('xml', $xml);
+                App::contenttype('application/xml');
+                App::body($xml);
                 App::result('success', true);
             } catch (\Exception $e) {
                 App::result('last_sql', $db->last_sql);
