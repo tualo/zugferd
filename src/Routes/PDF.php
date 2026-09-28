@@ -30,11 +30,12 @@ class PDF extends \Tualo\Office\Basic\RouteWrapper
                 App::contenttype('application/pdf');
                 App::body($pdfRawData);
             } catch (\Exception $e) {
+
+                App::contenttype('application/json');
                 App::result('last_sql', $db->last_sql ?? null);
                 App::result('msg', $e->getMessage());
                 App::result('success', false);
             }
-            App::contenttype('application/json');
         }, array('get'), false, [], self::scope());
     }
 }
