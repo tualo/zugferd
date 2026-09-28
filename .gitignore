@@ -2,3 +2,5 @@ musterbeleg.json
 *.log
 *.tmp
 vendor
+genergiertes.xml
+report-data.json
