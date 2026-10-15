@@ -12,10 +12,11 @@ insert ignore  into electronic_schemes (id, name) values ('9930', 'deutsche Umsa
 
 
 create table adressen_electronic_scheme (
-    id varchar(36) primary key,
+    id varchar(36),
     electronic_scheme varchar(10) not null,
     kundennummer varchar(10) not null,
     kostenstelle integer not null,
+    primary key (id, electronic_scheme),
     constraint fk_adressen_electronic_scheme_kundennummer foreign key (kundennummer, kostenstelle) references adressen (kundennummer, kostenstelle) on delete restrict on update cascade,
     constraint fk_adressen_electronic_scheme_electronic_scheme foreign key (electronic_scheme) references electronic_schemes(id) on delete restrict on update cascade,
     address varchar(255)

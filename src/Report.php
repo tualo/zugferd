@@ -219,7 +219,7 @@ class Report
         $invoice->exchangedDocumentContext->documentContextParameter->id = Builder::GUIDELINE_SPECIFIED_DOCUMENT_CONTEXT_ID_XRECHNUNG;
 
         $invoice->exchangedDocument = new ExchangedDocument();
-        $invoice->exchangedDocument->id = (string) ($data['document_no'] ?? $data['id']);
+        $invoice->exchangedDocument->id = (string) ($data['id']);
         $invoice->exchangedDocument->typeCode = '380';
         $invoice->exchangedDocument->issueDateTime = DateTime::create(102, str_replace('-', '', $data['date']));
 
@@ -255,7 +255,7 @@ class Report
         }
 
         $agreement = new HeaderTradeAgreement();
-        $agreement->buyerReference = (string) $data['referencenr'];
+        $agreement->buyerReference = (string) $data['reference'];
 
         $sellerInformation = self::parseAddressInfo($data, 'seller');
         $sellerTradeParty = new TradeParty();
