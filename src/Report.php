@@ -212,8 +212,7 @@ class Report
         string $type,
         int $id,
         string $profile = Builder::GUIDELINE_SPECIFIED_DOCUMENT_CONTEXT_ID_XRECHNUNG
-    ): string
-    {
+    ): string {
 
         $data = self::unwrapData(R::get($type, $id));
         if (is_null($data)) throw new \Exception('Report not found');
@@ -228,13 +227,16 @@ class Report
         $invoice->exchangedDocument->issueDateTime = DateTime::create(102, str_replace('-', '', $data['date']));
 
         $invoice->supplyChainTradeTransaction = new SupplyChainTradeTransaction();
-        foreach (($data['positions'] ?? []) as $position) {
+        if (!isset($data['en16931_positions'])) {
+            throw new \Exception('No positions found, required in field en16931_positions');
+        }
+        foreach (($data['en16931_positions'] ?? []) as $position) {
             $item = new SupplyChainTradeLineItem();
             $item->associatedDocumentLineDocument = DocumentLineDocument::create((string) $position['position']);
 
             $item->specifiedTradeProduct = new TradeProduct();
-            $item->specifiedTradeProduct->name = trim($position['artikel_text']);
-            $item->specifiedTradeProduct->sellerAssignedID = (string) $position['article'];
+            $item->specifiedTradeProduct->name = trim($position['article_text']);
+            $item->specifiedTradeProduct->sellerAssignedID = (string) $position['article_id'];
 
             $item->tradeAgreement = new LineTradeAgreement();
             $item->tradeAgreement->netPrice = TradePrice::create(number_format((float) $position['singleprice'], 4, '.', ''));
@@ -242,14 +244,14 @@ class Report
             $item->delivery = new LineTradeDelivery();
             $item->delivery->billedQuantity = Quantity::create(
                 number_format((float) $position['amount'], 4, '.', ''),
-                $position['einheit_symbol'] ?: 'C62'
+                $position['unit_code'] ?: 'H84'
             );
 
             $item->specifiedLineTradeSettlement = new LineTradeSettlement();
             $itemTax = new TradeTax();
             $itemTax->typeCode = 'VAT';
             $itemTax->categoryCode = 'S';
-            $itemTax->rateApplicablePercent = number_format((float) $position['tax'], 2, '.', '');
+            $itemTax->rateApplicablePercent = number_format((float) $position['tax_rate'], 2, '.', '');
             $item->specifiedLineTradeSettlement->tradeTax[] = $itemTax;
             $item->specifiedLineTradeSettlement->monetarySummation = TradeSettlementLineMonetarySummation::create(
                 number_format((float) $position['net'], 2, '.', '')
