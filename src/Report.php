@@ -208,7 +208,11 @@ class Report
         return $dom->saveXML();
     }
 
-    public static function get(string $type, int $id): string
+    public static function get(
+        string $type,
+        int $id,
+        string $profile = Builder::GUIDELINE_SPECIFIED_DOCUMENT_CONTEXT_ID_XRECHNUNG
+    ): string
     {
 
         $data = self::unwrapData(R::get($type, $id));
@@ -216,7 +220,7 @@ class Report
         $invoice = new CrossIndustryInvoice();
         $invoice->exchangedDocumentContext = new ExchangedDocumentContext();
         $invoice->exchangedDocumentContext->documentContextParameter = new DocumentContextParameter();
-        $invoice->exchangedDocumentContext->documentContextParameter->id = Builder::GUIDELINE_SPECIFIED_DOCUMENT_CONTEXT_ID_XRECHNUNG;
+        $invoice->exchangedDocumentContext->documentContextParameter->id = $profile;
 
         $invoice->exchangedDocument = new ExchangedDocument();
         $invoice->exchangedDocument->id = (string) ($data['id']);
@@ -359,7 +363,6 @@ class Report
                 */
 
         $settlement = new HeaderTradeSettlement();
-        $settlement->taxCurrencyCode = 'EUR';
         $settlement->invoiceCurrencyCode = 'EUR';
         foreach (($data['taxes'] ?? []) as $tax) {
             $headerTax = new TradeTax();
@@ -396,13 +399,14 @@ class Report
             $pdfData = null;
         }
 
-        $xml = \Tualo\Office\Zugferd\Report::get($type, $id);
+        $xml = self::get($type, $id, Builder::GUIDELINE_SPECIFIED_DOCUMENT_CONTEXT_ID_EN16931);
 
         $validator = new Validator();
         $validationError = $validator->validateAgainstXsd($xml, Validator::SCHEMA_EN16931);
         if ($validationError !== null) {
             throw new \Exception('Ungültige ZUGFeRD-Rechnung: ' . $validationError);
         }
+        self::facturX()->validateXml($xml);
 
         /*
         App::result('success', true);
@@ -424,33 +428,14 @@ class Report
     }
 
 
-    private static function embedXmlIntoPdf(string $pdfFile, string $xmlContent): ?string
+    private static function facturX(): FacturX
     {
-        $qpdf = trim((string) shell_exec('command -v qpdf 2>/dev/null || true'));
-        if ($qpdf === '') {
-            return null;
-        }
-
-        $tempDir = App::get('tempPath') ?: sys_get_temp_dir();
-        $xmlFile = $tempDir . '/zugferd_' . uniqid('', true) . '.xml';
-        $embeddedPdfFile = $tempDir . '/zugferd_' . uniqid('', true) . '.pdf';
-        file_put_contents($xmlFile, $xmlContent);
-
-        $cmd = sprintf(
-            '%s --replace-input --add-attachment %s --key=factur-x.xml --filename=factur-x.xml --mimetype=application/xml -- %s >/dev/null 2>&1',
-            escapeshellarg($qpdf),
-            escapeshellarg($xmlFile),
-            escapeshellarg($pdfFile)
+        return new FacturX(
+            (string) App::configuration('zugferd', 'mustang_jar', ''),
+            (string) App::configuration('zugferd', 'icc_profile', ''),
+            (string) App::configuration('zugferd', 'java_binary', 'java'),
+            (string) App::configuration('zugferd', 'ghostscript_binary', 'gs')
         );
-
-        $result = shell_exec($cmd);
-        unlink($xmlFile);
-
-        if (!file_exists($pdfFile) || filesize($pdfFile) === 0) {
-            return null;
-        }
-
-        return $pdfFile;
     }
 
     public static function pdf(string $type, string $id, string $template = '', string $tablename = ''): string
@@ -461,45 +446,22 @@ class Report
 
 
         $pdfRawData = RemotePDF::get($tablename, $template, $id);
-        $pdfData = null;
-        $embeddedXml = false;
-        if (isset($pdfRawData['filename']) && file_exists($pdfRawData['filename'])) {
-            $pdfData = file_get_contents($pdfRawData['filename']);
-            $pdfFile = $pdfRawData['filename'];
+        $pdfFile = $pdfRawData['filename'] ?? '';
+        if (!is_file($pdfFile)) {
+            throw new \RuntimeException('ZUGFeRD: PDF-Rendering hat keine Datei erzeugt.');
         }
-
-        $xml = \Tualo\Office\Zugferd\Report::get($type, $id);
-        $validator = new Validator();
-        $validationError = $validator->validateAgainstXsd($xml, Validator::SCHEMA_EN16931);
-        if ($validationError !== null) {
-            throw new \Exception('Ungültige ZUGFeRD-Rechnung: ' . $validationError);
-        }
-
-        if ($pdfData !== null && $pdfFile !== null) {
-            $embeddedPdfFile = self::embedXmlIntoPdf($pdfFile, $xml);
-            if ($embeddedPdfFile !== null) {
-                $pdfData = file_get_contents($embeddedPdfFile);
-                $embeddedXml = true;
-                unlink($embeddedPdfFile);
+        try {
+            $xml = self::get($type, $id, Builder::GUIDELINE_SPECIFIED_DOCUMENT_CONTEXT_ID_EN16931);
+            $validator = new Validator();
+            $validationError = $validator->validateAgainstXsd($xml, Validator::SCHEMA_EN16931);
+            if ($validationError !== null) {
+                throw new \Exception('Ungültige ZUGFeRD-Rechnung: ' . $validationError);
+            }
+            return self::facturX()->create($pdfFile, $xml);
+        } finally {
+            if (!unlink($pdfFile)) {
+                throw new \RuntimeException('ZUGFeRD: Temporäre Quell-PDF konnte nicht entfernt werden.');
             }
         }
-        if (isset($pdfFile) && file_exists($pdfFile)) {
-            unlink($pdfFile);
-        }
-
-        /*
-        App::result('success', true);
-        App::result('embedded_xml', $embeddedXml);
-        App::result('pdf_rowdata', $pdfRawData);
-        App::result('pdf_data', $pdfData !== null ? base64_encode($pdfData) : null);
-        App::result('pdf_contenttype', $pdfRawData['contenttype'] ?? 'application/pdf');
-        App::result('xml_data', $xml);
-        App::result('invoice', [
-            'pdf' => $pdfRawData,
-            'xml' => $xml,
-            'embedded_xml' => $embeddedXml,
-            'valid' => true,
-        ]);*/
-        return $pdfData;
     }
 }

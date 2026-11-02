@@ -22,6 +22,8 @@ class PDF extends \Tualo\Office\Basic\RouteWrapper
         BasicRoute::add('/zugferd/pdf/(?P<type>\w+)/(?P<tablename>[\w\-\_]+)/(?P<template>[\w\-\_]+)/(?P<id>.+)', function ($matches) {
             $db = App::get('session')->getDB();
             try {
+
+
                 $type = $matches['type'];
                 $id = $matches['id'];
                 $tablename = $matches['tablename'];
