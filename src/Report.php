@@ -340,11 +340,13 @@ class Report
         $invoice->exchangedDocument->issueDateTime = DateTime::create(102, str_replace('-', '', $data['date']));
 
         $invoice->supplyChainTradeTransaction = new SupplyChainTradeTransaction();
+        /*
         if (!isset($data['en16931_positions'])) {
             throw new \Exception('No positions found, required in field en16931_positions');
         }
+        */
         $lineTotals = [];
-        foreach (($data['en16931_positions'] ?? []) as $position) {
+        foreach (($data['positions'] ?? []) as $position) {
             $item = new SupplyChainTradeLineItem();
             $item->associatedDocumentLineDocument = DocumentLineDocument::create((string) $position['position']);
 
