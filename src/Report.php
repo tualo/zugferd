@@ -75,6 +75,47 @@ class Report
     }
 
     /**
+     * taxes[].net is summed from unrounded position nets and may differ by cents
+     * from the invoice net. The basis of a rate is only moved while its rounded
+     * tax amount stays unchanged, so header totals and VAT amounts remain as printed.
+     */
+    private static function reconcileTaxBases(array $taxes, mixed $invoiceNet): array
+    {
+        $difference = self::cents($invoiceNet);
+        foreach ($taxes as $index => $tax) {
+            $taxes[$index]['net'] = self::centsAmount(self::cents($tax['net'] ?? 0));
+            $difference -= self::cents($tax['net'] ?? 0);
+        }
+        if (abs($difference) > count($taxes)) {
+            throw new \Exception(sprintf(
+                'Steuerbasis der Steueraufschlüsselung weicht um %s vom Nettobetrag %s ab',
+                self::centsAmount($difference),
+                self::centsAmount(self::cents($invoiceNet))
+            ));
+        }
+        while ($difference !== 0) {
+            $step = $difference > 0 ? 1 : -1;
+            $adjusted = false;
+            foreach ($taxes as $index => $tax) {
+                $basis = self::cents($tax['net']) + $step;
+                if ((int) round($basis * (float) ($tax['rate'] ?? 0) / 100) === self::cents($tax['tax'] ?? 0)) {
+                    $taxes[$index]['net'] = self::centsAmount($basis);
+                    $difference -= $step;
+                    $adjusted = true;
+                    break;
+                }
+            }
+            if (!$adjusted) {
+                throw new \Exception(sprintf(
+                    'Steuerbasis der Steueraufschlüsselung passt nicht zum Nettobetrag %s und den Steuerbeträgen',
+                    self::centsAmount(self::cents($invoiceNet))
+                ));
+            }
+        }
+        return $taxes;
+    }
+
+    /**
      * Rounding differences between the grouped line nets and the VAT breakdown
      * of the invoice header become document level charges/allowances (BR-S-08).
      *
@@ -442,7 +483,8 @@ class Report
 
         $settlement = new HeaderTradeSettlement();
         $settlement->invoiceCurrencyCode = 'EUR';
-        foreach (($data['taxes'] ?? []) as $tax) {
+        $taxes = self::reconcileTaxBases($data['taxes'] ?? [], $data['net']);
+        foreach ($taxes as $tax) {
             $headerTax = new TradeTax();
             $headerTax->typeCode = $tax['type'] ?? 'VAT';
             $headerTax->categoryCode = $tax['category'] ?? 'S';
@@ -451,7 +493,7 @@ class Report
             $headerTax->rateApplicablePercent = number_format((float) ($tax['rate'] ?? 0), 2, '.', '');
             $settlement->tradeTaxes[] = $headerTax;
         }
-        $settlement->specifiedTradeAllowanceCharge = self::roundingAdjustments($lineTotals, $data['taxes'] ?? []);
+        $settlement->specifiedTradeAllowanceCharge = self::roundingAdjustments($lineTotals, $taxes);
         $chargeCents = 0;
         $allowanceCents = 0;
         foreach ($settlement->specifiedTradeAllowanceCharge as $adjustment) {

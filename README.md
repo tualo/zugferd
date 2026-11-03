@@ -152,8 +152,12 @@ Die PDF verwendet `urn:cen.eu:en16931:2017`, nicht das XRechnung-Profil.
 einen zusätzlichen Steuerbetrag in Abrechnungswährung erfordern würde.
 
 Die Positionen (`en16931_positions`) werden je Gruppe gerundet, die
-Steueraufschlüsselung (`taxes`) stammt aus den Belegsummen. Weichen die
-Positionssummen je Steuersatz um Rundungscent von `taxes[].net` ab, wird die
+Steueraufschlüsselung (`taxes`) stammt aus den ungerundeten Positionssummen.
+Weicht die Summe von `taxes[].net` um Rundungscent vom Beleg-Nettobetrag `net`
+ab, wird die Steuerbasis eines Steuersatzes nur dann angepasst, wenn der
+gerundete Steuerbetrag dieses Satzes dazu weiterhin passt (BR-CO-13, BR-S-09).
+Weichen danach die Positionssummen je Steuersatz um Rundungscent von der
+Steuerbasis ab, wird die
 Differenz als Zuschlag (BT-99) bzw. Abschlag (BT-92) auf Belegebene mit dem
 Grund `Rundungsdifferenz` und dem jeweiligen Steuersatz ausgewiesen (BR-S-08).
 Steuerbasis, Steuer und Bruttobetrag bleiben dadurch identisch mit dem PDF.

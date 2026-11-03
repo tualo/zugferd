@@ -43,7 +43,7 @@ namespace {
         if (!$condition) throw new \RuntimeException($message);
     }
 
-    function invoice(float $net, float $tax, array $positions): array
+    function invoice(float $net, float $tax, array $positions, ?float $taxesNet = null): array
     {
         $lines = [];
         foreach ($positions as $index => [$lineNet, $rate]) {
@@ -66,7 +66,7 @@ namespace {
             ],
             'tax_registration' => ['VA' => 'DE123456789'],
             'en16931_positions' => $lines,
-            'taxes' => [['net' => $net, 'tax' => $tax, 'rate' => 19]],
+            'taxes' => [['net' => $taxesNet ?? $net, 'tax' => $tax, 'rate' => 19]],
         ];
     }
 
@@ -76,6 +76,10 @@ namespace {
         'ohne Differenz' => [invoice(100.00, 19.00, [[50.00, 19], [50.00, 19]]), null],
         'Zuschlag' => [invoice(100.01, 19.00, [[50.00, 19], [50.00, 19]]), 'true'],
         'Abschlag' => [invoice(99.99, 19.00, [[50.00, 19], [50.00, 19]]), 'false'],
+        'Steuerbasis aus ungerundeten Positionen' => [
+            invoice(5000.07, 950.01, [[90.00, 19], [4685.07, 19], [225.00, 19]], 5000.08),
+            null,
+        ],
     ];
     foreach ($cases as $name => [$data, $chargeIndicator]) {
         \Tualo\Office\Report\Report::$data = $data;
@@ -100,6 +104,7 @@ namespace {
     foreach ([
         'große Abweichung' => invoice(101.00, 19.19, [[50.00, 19], [50.00, 19]]),
         'fehlender Steuersatz' => invoice(100.00, 19.00, [[50.00, 19], [50.00, 7]]),
+        'unpassender Steuerbetrag' => invoice(5000.07, 950.02, [[5000.07, 19]], 5000.08),
     ] as $name => $data) {
         \Tualo\Office\Report\Report::$data = $data;
         try {
