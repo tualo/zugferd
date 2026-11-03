@@ -634,6 +634,12 @@ class Report
         );
     }
 
+    public static function html(string $type, string $id, string $language = 'de'): string
+    {
+        $xml = self::get($type, $id, Builder::GUIDELINE_SPECIFIED_DOCUMENT_CONTEXT_ID_EN16931);
+        return self::facturX()->visualize($xml, $language);
+    }
+
     public static function pdf(string $type, string $id, string $template = '', string $tablename = ''): string
     {
 

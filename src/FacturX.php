@@ -30,6 +30,33 @@ class FacturX
         }
     }
 
+    public function visualize(string $xml, string $language = 'de'): string
+    {
+        if (!in_array($language, ['de', 'en', 'fr'], true)) {
+            throw new \RuntimeException('ZUGFeRD: Unbekannte Sprache für die HTML-Ansicht: ' . $language);
+        }
+        $directory = $this->createDirectory();
+        try {
+            $this->write($directory . '/factur-x.xml', $xml);
+            // Mustang schreibt xrechnung-viewer.css/js zusätzlich ins Arbeitsverzeichnis;
+            // die HTML-Ausgabe selbst ist self-contained, cleanup() entfernt die Kopien.
+            $this->run([
+                $this->javaBinary, '-jar', $this->mustangJar,
+                '--action', 'visualize', '--language', $language,
+                '--source', $directory . '/factur-x.xml',
+                '--out', $directory . '/invoice.html',
+                '--disable-file-logging',
+            ], $directory);
+            $html = file_get_contents($directory . '/invoice.html');
+            if ($html === false || trim($html) === '') {
+                throw new \RuntimeException('ZUGFeRD: Keine HTML-Ausgabe erzeugt.');
+            }
+            return $html;
+        } finally {
+            $this->cleanup($directory);
+        }
+    }
+
     public function create(string $sourcePdf, string $xml): string
     {
         if (!is_file($sourcePdf) || !is_readable($sourcePdf)) {

@@ -4,5 +4,5 @@ require_once "Compiler.php";
 require_once "Routes/XML.php";
 require_once "Routes/XMLPlain.php";
 require_once "Routes/PDF.php";
-
+require_once "Routes/Html.php";
 require_once "Checks/Configuration.php";

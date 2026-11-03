@@ -101,6 +101,13 @@ Die PDF-Route liefert ausschließlich einen erfolgreich geprüften Factur-X-Expo
 /zugferd/pdf/{type}/{tablename}/{template}/{id}
 ```
 
+Die HTML-Route rendert die Rechnung mit dem Mustang-XRechnung-Viewer als
+self-contained HTML (optional `?lang=de|en|fr`, Standard `de`):
+
+```text
+/zugferd/htmlview/{type}/{id}
+```
+
 ## Hinweis zur eingebetteten XML
 
 Die eingebettete XML-Datei wird im PDF als Anhang mit folgendem Namen mitgeliefert:
