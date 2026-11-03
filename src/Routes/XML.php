@@ -35,6 +35,6 @@ class XML extends \Tualo\Office\Basic\RouteWrapper
                 App::result('msg', $e->getMessage());
             }
             App::contenttype('application/json');
-        }, array('get'), false);
+        }, array('get'), true);
     }
 }
