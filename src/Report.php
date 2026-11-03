@@ -189,7 +189,8 @@ class Report
     private static function parseAddressInfo(array $data, string $prefix = 'buyer'): array
     {
         $base = [];
-        $addressText = trim((string) ($data['address'] ?? ''));
+        // The letter address text is the buyer address; never seed other parties from it.
+        $addressText = $prefix === 'buyer' ? trim((string) ($data['address'] ?? '')) : '';
         if ($addressText !== '') {
             $lines = preg_split('/\r\n|\r|\n/', $addressText);
             $clean = [];
@@ -198,23 +199,20 @@ class Report
                 if ($line !== '') $clean[] = $line;
             }
 
+            if (count($clean) >= 2 && preg_match('/^(\d{4,5})\s+(.+)$/u', $clean[count($clean) - 1], $m) === 1) {
+                $base['postcode'] = $m[1];
+                $base['city'] = $m[2];
+                array_pop($clean);
+            }
+            // line1 = name, line3 = street (last line), line2 = additions in between
             if (count($clean) >= 1) {
                 $base['line1'] = $clean[0];
             }
             if (count($clean) >= 2) {
-                $base['line2'] = $clean[1];
+                $base['line3'] = $clean[count($clean) - 1];
             }
             if (count($clean) >= 3) {
-                $base['line3'] = $clean[2];
-            }
-            if (count($clean) >= 4) {
-                $match = preg_match('/^(\d{4,5})\s+(.+)$/u', $clean[count($clean) - 1], $m);
-                if ($match === 1) {
-                    $base['postcode'] = $m[1];
-                    $base['city'] = $m[2];
-                } else {
-                    $base['city'] = $clean[count($clean) - 1];
-                }
+                $base['line2'] = implode(', ', array_slice($clean, 1, count($clean) - 2));
             }
         }
 
