@@ -48,9 +48,9 @@ namespace {
         $lines = [];
         foreach ($positions as $index => [$lineNet, $rate]) {
             $lines[] = [
-                'position' => $index + 1, 'article_text' => 'Artikel ' . ($index + 1), 'article_id' => 'A' . ($index + 1),
-                'singleprice' => $lineNet, 'amount' => 1, 'unit_code' => 'C62',
-                'tax_rate' => $rate, 'net' => $lineNet,
+                'position' => $index + 1, 'artikel_text' => 'Artikel ' . ($index + 1), 'article' => 'A' . ($index + 1),
+                'singleprice' => $lineNet, 'amount' => 1, 'einheit_symbol' => 'C62',
+                'tax' => $rate, 'net' => $lineNet,
             ];
         }
         return [
@@ -65,7 +65,7 @@ namespace {
                 'city' => 'Berlin', 'postcode' => '10115', 'country' => 'DE',
             ],
             'tax_registration' => ['VA' => 'DE123456789'],
-            'en16931_positions' => $lines,
+            'positions' => $lines,
             'taxes' => [['net' => $taxesNet ?? $net, 'tax' => $tax, 'rate' => 19]],
         ];
     }

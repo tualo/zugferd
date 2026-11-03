@@ -151,7 +151,7 @@ Die PDF verwendet `urn:cen.eu:en16931:2017`, nicht das XRechnung-Profil.
 `TaxCurrencyCode` wird nicht pauschal auf die Rechnungswährung gesetzt, da dies
 einen zusätzlichen Steuerbetrag in Abrechnungswährung erfordern würde.
 
-Die Positionen (`en16931_positions`) werden je Gruppe gerundet, die
+Die Positionen (`positions`) werden je Zeile gerundet, die
 Steueraufschlüsselung (`taxes`) stammt aus den ungerundeten Positionssummen.
 Weicht die Summe von `taxes[].net` um Rundungscent vom Beleg-Nettobetrag `net`
 ab, wird die Steuerbasis eines Steuersatzes nur dann angepasst, wenn der

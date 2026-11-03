@@ -340,34 +340,45 @@ class Report
         $invoice->exchangedDocument->issueDateTime = DateTime::create(102, str_replace('-', '', $data['date']));
 
         $invoice->supplyChainTradeTransaction = new SupplyChainTradeTransaction();
-        /*
-        if (!isset($data['en16931_positions'])) {
-            throw new \Exception('No positions found, required in field en16931_positions');
+        if (!isset($data['positions'])) {
+            throw new \Exception('No positions found, required in field positions');
         }
-        */
         $lineTotals = [];
         foreach (($data['positions'] ?? []) as $position) {
             $item = new SupplyChainTradeLineItem();
             $item->associatedDocumentLineDocument = DocumentLineDocument::create((string) $position['position']);
 
+            // BT-153 is mandatory; artikel_text may be empty, fall back to the first description line.
+            $name = trim((string) ($position['artikel_text'] ?? ''));
+            if ($name === '') {
+                $descriptionLines = preg_split('/\r\n|\r|\n/', trim((string) ($position['leistungsbeschreibung'] ?? '')));
+                $name = trim((string) ($descriptionLines[0] ?? ''));
+            }
+            if ($name === '') {
+                $name = (string) ($position['article'] ?? '');
+            }
             $item->specifiedTradeProduct = new TradeProduct();
-            $item->specifiedTradeProduct->name = trim($position['article_text']);
-            $item->specifiedTradeProduct->sellerAssignedID = (string) $position['article_id'];
+            $item->specifiedTradeProduct->name = $name;
+            $item->specifiedTradeProduct->sellerAssignedID = (string) ($position['article'] ?? '');
 
+            // singleprice is rounded for display; derive the net price from net/amount
+            // so quantity x price matches the line net amount.
+            $amount = (float) $position['amount'];
+            $netPrice = $amount != 0.0 ? (float) $position['net'] / $amount : (float) $position['singleprice'];
             $item->tradeAgreement = new LineTradeAgreement();
-            $item->tradeAgreement->netPrice = TradePrice::create(number_format((float) $position['singleprice'], 6, '.', ''));
+            $item->tradeAgreement->netPrice = TradePrice::create(number_format($netPrice, 6, '.', ''));
 
             $item->delivery = new LineTradeDelivery();
             $item->delivery->billedQuantity = Quantity::create(
-                number_format((float) $position['amount'], 4, '.', ''),
-                $position['unit_code'] ?: 'H84'
+                number_format($amount, 4, '.', ''),
+                ($position['einheit_symbol'] ?? null) ?: 'H84'
             );
 
             $item->specifiedLineTradeSettlement = new LineTradeSettlement();
             $itemTax = new TradeTax();
             $itemTax->typeCode = 'VAT';
             $itemTax->categoryCode = 'S';
-            $itemTax->rateApplicablePercent = self::rateKey($position['tax_rate']);
+            $itemTax->rateApplicablePercent = self::rateKey($position['tax']);
             $item->specifiedLineTradeSettlement->tradeTax[] = $itemTax;
             $lineCents = self::cents($position['net']);
             $lineTotals[$itemTax->rateApplicablePercent]['cents'] = ($lineTotals[$itemTax->rateApplicablePercent]['cents'] ?? 0) + $lineCents;
