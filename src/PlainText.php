@@ -44,6 +44,8 @@ class PlainText
         }
         $reference = $q("*[local-name()='BuyerReference']", $agreement);
         if ($reference !== '') $out[] = 'Referenz: ' . $reference;
+        $orderNumber = $q("*[local-name()='BuyerOrderReferencedDocument']/*[local-name()='IssuerAssignedID']", $agreement);
+        if ($orderNumber !== '') $out[] = 'Bestellnummer: ' . $orderNumber;
 
         $out[] = str_repeat('-', self::WIDTH);
         $out[] = 'Pos ' . self::padRight('Bezeichnung', 36)

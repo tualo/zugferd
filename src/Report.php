@@ -396,6 +396,12 @@ class Report
             $agreement->buyerReference = (string) $data['additional_information']['kundenkonto'];
         }
 
+        // BT-13 purchase order reference
+        $orderNumber = trim((string) ($data['additional_information']['order_number'] ?? ''));
+        if ($orderNumber !== '') {
+            $agreement->buyerOrderReferencedDocument = ReferencedDocument::create($orderNumber);
+        }
+
         $sellerInformation = self::parseAddressInfo($data, 'seller');
         $sellerTradeParty = new TradeParty();
         $sellerTradeParty->name = trim(str_replace(["\r", "\n"], ' ', (string) ($sellerInformation['line1'] ?? '')));
