@@ -46,15 +46,16 @@ class PlainText
         if ($reference !== '') $out[] = 'Referenz: ' . $reference;
 
         $out[] = str_repeat('-', self::WIDTH);
-        //        Pos Bezeichnung................................ Menge.... ME.. Preis..... Netto.......
-        $out[] = 'Pos Bezeichnung' . str_repeat(' ', 27) . '     Menge ME        Preis        Netto';
+        $out[] = 'Pos ' . self::padRight('Bezeichnung', 36)
+            . self::padLeft('Menge', 10) . ' ' . self::padRight('ME', 3)
+            . self::padLeft('Preis', 13) . self::padLeft('Netto', 13);
         $out[] = str_repeat('-', self::WIDTH);
 
         foreach ($xpath->query("//*[local-name()='IncludedSupplyChainTradeLineItem']") as $line) {
-            $nameLines = self::wrap($q(".//*[local-name()='SpecifiedTradeProduct']/*[local-name()='Name']", $line), 37);
+            $nameLines = self::wrap($q(".//*[local-name()='SpecifiedTradeProduct']/*[local-name()='Name']", $line), 36);
             $out[] = self::padLeft($q(".//*[local-name()='LineID']", $line), 3)
-                . ' ' . self::padRight($nameLines[0] ?? '', 37)
-                . ' ' . self::padLeft(self::number($q(".//*[local-name()='BilledQuantity']", $line), 0, 4), 9)
+                . ' ' . self::padRight($nameLines[0] ?? '', 36)
+                . self::padLeft(self::number($q(".//*[local-name()='BilledQuantity']", $line), 0, 4), 10)
                 . ' ' . self::padRight($q(".//*[local-name()='BilledQuantity']/@unitCode", $line), 3)
                 . self::padLeft(self::number($q(".//*[local-name()='NetPriceProductTradePrice']/*[local-name()='ChargeAmount']", $line), 2, 6), 13)
                 . self::padLeft(self::number($q(".//*[local-name()='SpecifiedTradeSettlementLineMonetarySummation']/*[local-name()='LineTotalAmount']", $line), 2, 2), 13);
