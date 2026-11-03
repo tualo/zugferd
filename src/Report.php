@@ -391,6 +391,11 @@ class Report
         $agreement = new HeaderTradeAgreement();
         $agreement->buyerReference = (string) $data['reference'];
 
+        // dirty hack to override buyerReference with kundenkonto if available
+        if ((!empty($data['additional_information'])) && (!empty($data['additional_information']['kundenkonto']))) {
+            $agreement->buyerReference = (string) $data['additional_information']['kundenkonto'];
+        }
+
         $sellerInformation = self::parseAddressInfo($data, 'seller');
         $sellerTradeParty = new TradeParty();
         $sellerTradeParty->name = trim(str_replace(["\r", "\n"], ' ', (string) ($sellerInformation['line1'] ?? '')));
