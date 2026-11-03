@@ -505,6 +505,25 @@ class Report
 
         $settlement = new HeaderTradeSettlement();
         $settlement->invoiceCurrencyCode = 'EUR';
+
+        // BG-16 (BR-DE-1): SEPA-Überweisung auf das Verkäuferkonto, sofern die Daten eine IBAN liefern.
+        $sellerIban = strtoupper((string) preg_replace('/\s+/', '', (string) ($sellerInformation['iban'] ?? '')));
+        if ($sellerIban !== '') {
+            $paymentMeans = new TradeSettlementPaymentMeans();
+            $paymentMeans->typeCode = '58';
+            $paymentMeans->payeePartyCreditorFinancialAccount = new CreditorFinancialAccount();
+            $paymentMeans->payeePartyCreditorFinancialAccount->ibanId = Id::create($sellerIban);
+            $accountName = self::normalizeAddressValue($sellerInformation['account_name'] ?? null);
+            if ($accountName !== null) {
+                $paymentMeans->payeePartyCreditorFinancialAccount->accountName = $accountName;
+            }
+            $sellerBic = strtoupper((string) preg_replace('/\s+/', '', (string) ($sellerInformation['bic'] ?? '')));
+            if ($sellerBic !== '') {
+                $paymentMeans->payeeSpecifiedCreditorFinancialInstitution = new CreditorFinancialInstitution();
+                $paymentMeans->payeeSpecifiedCreditorFinancialInstitution->bicId = Id::create($sellerBic);
+            }
+            $settlement->specifiedTradeSettlementPaymentMeans[] = $paymentMeans;
+        }
         $taxes = self::reconcileTaxBases($data['taxes'] ?? [], $data['net']);
         foreach ($taxes as $tax) {
             $headerTax = new TradeTax();

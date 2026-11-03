@@ -4,6 +4,9 @@ alter table buchungskreise add if not exists electronic_address varchar(255);
 alter table buchungskreise add if not exists contact_name varchar(255);
 alter table buchungskreise add if not exists contact_phone varchar(255);
 alter table buchungskreise add if not exists contact_email varchar(255);
+alter table buchungskreise add if not exists iban varchar(34);
+alter table buchungskreise add if not exists bic varchar(11);
+alter table buchungskreise add if not exists iban  varchar(255);
 
 
 CREATE OR REPLACE TRIGGER blg_hdr_rechnung_au_seller_information
@@ -24,7 +27,10 @@ BEGIN
             electronic_address,
             contact_name,
             contact_phone,
-            contact_email
+            contact_email,
+            iban,
+            bic,
+            iban
 
 
         from 
@@ -109,6 +115,21 @@ BEGIN
             new.id,
             'contact_email',
             record.contact_email
+        ),
+        (
+            new.id,
+            'iban',
+            record.iban
+        ),
+        (
+            new.id,
+            'bic',
+            record.bic
+        ),
+        (
+            new.id,
+            'iban',
+            record.iban
         );
 
      end for;

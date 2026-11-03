@@ -144,6 +144,10 @@ Die Daten kommen aus `Report::get()` bzw. der Datenbankroutine `getReport`.
 Verkäufer-Steuerkennungen werden aus `tax_registration` gelesen
 (z. B. `VA` für USt-ID oder `FC` für Steuernummer). Adressen müssen in
 `seller_information` und `buyer_information` korrekt geliefert werden.
+Liefert `seller_information` eine `iban` (optional `bic` und `account_name`),
+werden Zahlungsangaben (BG-16, Code 58 SEPA-Überweisung) mit dem
+Verkäuferkonto als Zahlungsziel ausgegeben; das erfüllt die
+XRechnung-Regel BR-DE-1.
 Fehlende Pflichtwerte werden nicht erfunden. Mustang meldet die konkreten
 Geschäftsregeln, die vor einem erfolgreichen Export erfüllt sein müssen.
 
