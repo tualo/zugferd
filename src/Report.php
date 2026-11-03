@@ -524,6 +524,30 @@ class Report
             }
             $settlement->specifiedTradeSettlementPaymentMeans[] = $paymentMeans;
         }
+
+        // BT-20 Zahlungsbedingungen sind Pflicht für den Export; Skonto nach
+        // XRechnung-Konvention (BR-DE-18), Fälligkeitsdatum (BT-9) aus dem Zahlungsziel.
+        $additional = is_array($data['additional_information'] ?? null) ? $data['additional_information'] : [];
+        $paymentTermsText = trim((string) ($additional['zahlungsbedingungen'] ?? ''));
+        if ($paymentTermsText === '') {
+            throw new \Exception('Zahlungsbedingungen fehlen (additional_information.zahlungsbedingungen)');
+        }
+        $termsLines = [$paymentTermsText];
+        $skontoPercent = (float) ($additional['skonto'] ?? 0);
+        $skontoDays = (int) ($additional['skontotage'] ?? 0);
+        $hasSkonto = $skontoPercent > 0 && $skontoDays > 0;
+        if ($hasSkonto) {
+            $termsLines[] = sprintf('#SKONTO#TAGE=%d#PROZENT=%s#', $skontoDays, number_format($skontoPercent, 2, '.', ''));
+        }
+        $paymentTerms = new TradePaymentTerms();
+        // BR-DE-18: Nach einer vollständigen Skontoangabe muss ein Zeilenumbruch folgen.
+        $paymentTerms->description = implode("\n", $termsLines) . ($hasSkonto ? "\n" : '');
+        $dueDays = (int) ($additional['zahlungsziel'] ?? 0);
+        if ($dueDays > 0) {
+            $dueDate = (new \DateTimeImmutable((string) $data['date']))->modify('+' . $dueDays . ' days');
+            $paymentTerms->dueDateDateTime = DateTime::create(102, $dueDate->format('Ymd'));
+        }
+        $settlement->specifiedTradePaymentTerms[] = $paymentTerms;
         $taxes = self::reconcileTaxBases($data['taxes'] ?? [], $data['net']);
         foreach ($taxes as $tax) {
             $headerTax = new TradeTax();

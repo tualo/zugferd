@@ -65,6 +65,10 @@ namespace {
                 'city' => 'Berlin', 'postcode' => '10115', 'country' => 'DE',
             ],
             'tax_registration' => ['VA' => 'DE123456789'],
+            'additional_information' => [
+                'zahlungsbedingungen' => 'Zahlbar innerhalb von 14 Tagen netto',
+                'zahlungsziel' => 14,
+            ],
             'positions' => $lines,
             'taxes' => [['net' => $taxesNet ?? $net, 'tax' => $tax, 'rate' => 19]],
         ];

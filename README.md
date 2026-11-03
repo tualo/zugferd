@@ -148,6 +148,12 @@ Liefert `seller_information` eine `iban` (optional `bic` und `account_name`),
 werden Zahlungsangaben (BG-16, Code 58 SEPA-Überweisung) mit dem
 Verkäuferkonto als Zahlungsziel ausgegeben; das erfüllt die
 XRechnung-Regel BR-DE-1.
+`additional_information.zahlungsbedingungen` ist Pflicht und wird als
+Zahlungsbedingung (BT-20) übernommen; fehlt der Wert, bricht der Export mit
+einer Exception ab. Ein positives `zahlungsziel` (Tage ab Belegdatum) ergibt
+das Fälligkeitsdatum (BT-9); sind `skonto` (Prozent) und `skontotage` beide
+größer null, wird eine Skontozeile im XRechnung-Format
+`#SKONTO#TAGE=n#PROZENT=n.nn#` angehängt (BR-DE-18).
 Fehlende Pflichtwerte werden nicht erfunden. Mustang meldet die konkreten
 Geschäftsregeln, die vor einem erfolgreichen Export erfüllt sein müssen.
 

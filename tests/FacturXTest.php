@@ -51,6 +51,10 @@ namespace {
             'city' => 'Berlin', 'postcode' => '10115', 'country' => 'DE',
         ],
         'tax_registration' => ['VA' => 'DE123456789'],
+        'additional_information' => [
+            'zahlungsbedingungen' => 'Zahlbar innerhalb von 14 Tagen netto',
+            'zahlungsziel' => 14, 'skonto' => 2, 'skontotage' => 7,
+        ],
         'positions' => [[
             'position' => 1, 'artikel_text' => 'Testartikel', 'article' => 'TEST',
             'singleprice' => 100, 'amount' => 1, 'einheit_symbol' => 'C62',
