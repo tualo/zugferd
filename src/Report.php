@@ -24,6 +24,7 @@ use Easybill\ZUGFeRD2\Model\DocumentContextParameter;
 use Easybill\ZUGFeRD2\Model\DocumentLineDocument;
 use Easybill\ZUGFeRD2\Model\ExchangedDocument;
 use Easybill\ZUGFeRD2\Model\ExchangedDocumentContext;
+use Easybill\ZUGFeRD2\Model\Indicator;
 use Easybill\ZUGFeRD2\Model\HeaderTradeAgreement;
 use Easybill\ZUGFeRD2\Model\HeaderTradeDelivery;
 use Easybill\ZUGFeRD2\Model\HeaderTradeSettlement;
@@ -40,6 +41,7 @@ use Easybill\ZUGFeRD2\Model\SupplyChainTradeLineItem;
 use Easybill\ZUGFeRD2\Model\SupplyChainTradeTransaction;
 use Easybill\ZUGFeRD2\Model\TaxRegistration;
 use Easybill\ZUGFeRD2\Model\TradeAddress;
+use Easybill\ZUGFeRD2\Model\TradeAllowanceCharge;
 use Easybill\ZUGFeRD2\Model\TradeContact;
 use Easybill\ZUGFeRD2\Model\TradeParty;
 use Easybill\ZUGFeRD2\Model\TradePaymentTerms;
@@ -57,6 +59,76 @@ use PHPUnit\Framework\TestCase;
 
 class Report
 {
+    private static function cents(mixed $value): int
+    {
+        return (int) round((float) $value * 100);
+    }
+
+    private static function centsAmount(int $cents): string
+    {
+        return number_format($cents / 100, 2, '.', '');
+    }
+
+    private static function rateKey(mixed $rate): string
+    {
+        return number_format((float) $rate, 2, '.', '');
+    }
+
+    /**
+     * Rounding differences between the grouped line nets and the VAT breakdown
+     * of the invoice header become document level charges/allowances (BR-S-08).
+     *
+     * @param array<string, array{cents:int, count:int}> $lineTotals
+     * @return TradeAllowanceCharge[]
+     */
+    private static function roundingAdjustments(array $lineTotals, array $taxes): array
+    {
+        $adjustments = [];
+        $headerRates = [];
+        foreach ($taxes as $tax) {
+            $rate = self::rateKey($tax['rate'] ?? 0);
+            if (isset($headerRates[$rate])) {
+                throw new \Exception('Steuersatz ' . $rate . ' ist mehrfach in der Steueraufschlüsselung enthalten');
+            }
+            $headerRates[$rate] = true;
+            $lineCents = $lineTotals[$rate]['cents'] ?? 0;
+            $lineCount = $lineTotals[$rate]['count'] ?? 0;
+            $difference = self::cents($tax['net'] ?? 0) - $lineCents;
+            if ($difference === 0) {
+                continue;
+            }
+            // Each rounded line and the header sum may contribute at most half a cent.
+            if ($lineCount === 0 || abs($difference) > $lineCount + 1) {
+                throw new \Exception(sprintf(
+                    'Positionssumme %s und Steuerbasis %s für Steuersatz %s weichen um mehr als eine Rundungsdifferenz ab',
+                    self::centsAmount($lineCents),
+                    self::centsAmount(self::cents($tax['net'] ?? 0)),
+                    $rate
+                ));
+            }
+            $indicator = new Indicator();
+            $indicator->indicator = $difference > 0;
+            $adjustmentTax = new TradeTax();
+            $adjustmentTax->typeCode = $tax['type'] ?? 'VAT';
+            $adjustmentTax->categoryCode = $tax['category'] ?? 'S';
+            $adjustmentTax->rateApplicablePercent = $rate;
+            $adjustments[] = TradeAllowanceCharge::create(
+                Amount::create(self::centsAmount(abs($difference))),
+                $indicator,
+                null,
+                null,
+                'Rundungsdifferenz',
+                [$adjustmentTax]
+            );
+        }
+        foreach ($lineTotals as $rate => $total) {
+            if (!isset($headerRates[$rate])) {
+                throw new \Exception('Steuersatz ' . $rate . ' der Positionen fehlt in der Steueraufschlüsselung');
+            }
+        }
+        return $adjustments;
+    }
+
     private static function normalizeAddressValue(mixed $value): ?string
     {
         if ($value === null) return null;
@@ -230,6 +302,7 @@ class Report
         if (!isset($data['en16931_positions'])) {
             throw new \Exception('No positions found, required in field en16931_positions');
         }
+        $lineTotals = [];
         foreach (($data['en16931_positions'] ?? []) as $position) {
             $item = new SupplyChainTradeLineItem();
             $item->associatedDocumentLineDocument = DocumentLineDocument::create((string) $position['position']);
@@ -239,7 +312,7 @@ class Report
             $item->specifiedTradeProduct->sellerAssignedID = (string) $position['article_id'];
 
             $item->tradeAgreement = new LineTradeAgreement();
-            $item->tradeAgreement->netPrice = TradePrice::create(number_format((float) $position['singleprice'], 4, '.', ''));
+            $item->tradeAgreement->netPrice = TradePrice::create(number_format((float) $position['singleprice'], 6, '.', ''));
 
             $item->delivery = new LineTradeDelivery();
             $item->delivery->billedQuantity = Quantity::create(
@@ -251,10 +324,13 @@ class Report
             $itemTax = new TradeTax();
             $itemTax->typeCode = 'VAT';
             $itemTax->categoryCode = 'S';
-            $itemTax->rateApplicablePercent = number_format((float) $position['tax_rate'], 2, '.', '');
+            $itemTax->rateApplicablePercent = self::rateKey($position['tax_rate']);
             $item->specifiedLineTradeSettlement->tradeTax[] = $itemTax;
+            $lineCents = self::cents($position['net']);
+            $lineTotals[$itemTax->rateApplicablePercent]['cents'] = ($lineTotals[$itemTax->rateApplicablePercent]['cents'] ?? 0) + $lineCents;
+            $lineTotals[$itemTax->rateApplicablePercent]['count'] = ($lineTotals[$itemTax->rateApplicablePercent]['count'] ?? 0) + 1;
             $item->specifiedLineTradeSettlement->monetarySummation = TradeSettlementLineMonetarySummation::create(
-                number_format((float) $position['net'], 2, '.', '')
+                self::centsAmount($lineCents)
             );
 
             $invoice->supplyChainTradeTransaction->lineItems[] = $item;
@@ -375,11 +451,22 @@ class Report
             $headerTax->rateApplicablePercent = number_format((float) ($tax['rate'] ?? 0), 2, '.', '');
             $settlement->tradeTaxes[] = $headerTax;
         }
+        $settlement->specifiedTradeAllowanceCharge = self::roundingAdjustments($lineTotals, $data['taxes'] ?? []);
+        $chargeCents = 0;
+        $allowanceCents = 0;
+        foreach ($settlement->specifiedTradeAllowanceCharge as $adjustment) {
+            if ($adjustment->indicator->indicator) {
+                $chargeCents += self::cents($adjustment->actualAmount->value);
+            } else {
+                $allowanceCents += self::cents($adjustment->actualAmount->value);
+            }
+        }
+        $lineTotalCents = array_sum(array_column($lineTotals, 'cents'));
         $invoice->supplyChainTradeTransaction->applicableHeaderTradeSettlement = $settlement;
         $settlement->specifiedTradeSettlementHeaderMonetarySummation = $summation = new TradeSettlementHeaderMonetarySummation();
-        $summation->lineTotalAmount = Amount::create(number_format((float) $data['net'], 2, '.', ''));
-        $summation->chargeTotalAmount = Amount::create('0.00');
-        $summation->allowanceTotalAmount = Amount::create('0.00');
+        $summation->lineTotalAmount = Amount::create(self::centsAmount($lineTotalCents));
+        $summation->chargeTotalAmount = Amount::create(self::centsAmount($chargeCents));
+        $summation->allowanceTotalAmount = Amount::create(self::centsAmount($allowanceCents));
         $summation->taxBasisTotalAmount[] = Amount::create(number_format((float) $data['net'], 2, '.', ''));
         $summation->taxTotalAmount[] = Amount::create(number_format((float) $data['steuer'], 2, '.', ''), 'EUR');
         $summation->grandTotalAmount[] = Amount::create(number_format((float) $data['gross'], 2, '.', ''));

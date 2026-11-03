@@ -151,6 +151,15 @@ Die PDF verwendet `urn:cen.eu:en16931:2017`, nicht das XRechnung-Profil.
 `TaxCurrencyCode` wird nicht pauschal auf die Rechnungswährung gesetzt, da dies
 einen zusätzlichen Steuerbetrag in Abrechnungswährung erfordern würde.
 
+Die Positionen (`en16931_positions`) werden je Gruppe gerundet, die
+Steueraufschlüsselung (`taxes`) stammt aus den Belegsummen. Weichen die
+Positionssummen je Steuersatz um Rundungscent von `taxes[].net` ab, wird die
+Differenz als Zuschlag (BT-99) bzw. Abschlag (BT-92) auf Belegebene mit dem
+Grund `Rundungsdifferenz` und dem jeweiligen Steuersatz ausgewiesen (BR-S-08).
+Steuerbasis, Steuer und Bruttobetrag bleiben dadurch identisch mit dem PDF.
+Abweichungen über einen Cent je Position plus einem Cent sowie Steuersätze,
+die nur in den Positionen vorkommen, werden als Fehler abgelehnt.
+
 ## Lokaler Integrationstest
 
 ```bash
@@ -162,6 +171,12 @@ Der Test verwendet eine synthetische Rechnung, prüft XSD und Mustang,
 weist den Export ohne Verkäufer-Steuerkennung zurück und validiert die fertige
 PDF/A-3 mit eingebetteter XML. Die Quell-PDF bleibt unverändert. Das Ergebnis
 ist eine **Testrechnung**, keine korrigierte reale Rechnung.
+
+Den Ausgleich von Rundungsdifferenzen prüft:
+
+```bash
+php tests/RoundingDifferenceTest.php /pfad/Mustang-CLI-2.26.0.jar
+```
 
 ## Troubleshooting
 
