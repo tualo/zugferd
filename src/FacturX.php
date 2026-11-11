@@ -41,10 +41,17 @@ class FacturX
             // Mustang schreibt xrechnung-viewer.css/js zusätzlich ins Arbeitsverzeichnis;
             // die HTML-Ausgabe selbst ist self-contained, cleanup() entfernt die Kopien.
             $this->run([
-                $this->javaBinary, '-jar', $this->mustangJar,
-                '--action', 'visualize', '--language', $language,
-                '--source', $directory . '/factur-x.xml',
-                '--out', $directory . '/invoice.html',
+                $this->javaBinary,
+                '-jar',
+                $this->mustangJar,
+                '--action',
+                'visualize',
+                '--language',
+                $language,
+                '--source',
+                $directory . '/factur-x.xml',
+                '--out',
+                $directory . '/invoice.html',
                 '--disable-file-logging',
             ], $directory);
             $html = file_get_contents($directory . '/invoice.html');
@@ -88,20 +95,40 @@ class FacturX
 [{Catalog} << /OutputIntents [ {OutputIntent_PDFA} ] >> /PUT pdfmark
 PS);
             $this->run([
-                $this->ghostscriptBinary, '-dBATCH', '-dNOPAUSE', '-dSAFER',
+                $this->ghostscriptBinary,
+                '-dBATCH',
+                '-dNOPAUSE',
+                '-dSAFER',
                 '--permit-file-read=profile.icc',
-                '-sDEVICE=pdfwrite', '-dPDFA=3', '-dPDFACompatibilityPolicy=1',
-                '-sColorConversionStrategy=RGB', '-dEmbedAllFonts=true',
+                '-sDEVICE=pdfwrite',
+                '-dPDFA=3',
+                '-dPDFACompatibilityPolicy=1',
+                '-sColorConversionStrategy=RGB',
+                '-dEmbedAllFonts=true',
                 '-sOutputFile=' . $directory . '/pdfa.pdf',
-                $directory . '/pdfa.ps', $sourcePdf,
+                $directory . '/pdfa.ps',
+                $sourcePdf,
             ], $directory);
             $this->run([
-                $this->javaBinary, '-jar', $this->mustangJar,
-                '--action', 'combine', '--source', $directory . '/pdfa.pdf',
-                '--source-xml', $directory . '/factur-x.xml',
-                '--out', $directory . '/invoice.pdf',
-                '--format', 'fx', '--version', '2', '--profile', 'E',
-                '--no-additional-attachments', '--disable-file-logging',
+                $this->javaBinary,
+                '-jar',
+                $this->mustangJar,
+                '--action',
+                'combine',
+                '--source',
+                $directory . '/pdfa.pdf',
+                '--source-xml',
+                $directory . '/factur-x.xml',
+                '--out',
+                $directory . '/invoice.pdf',
+                '--format',
+                'fx',
+                '--version',
+                '2',
+                '--profile',
+                'E',
+                '--no-additional-attachments',
+                '--disable-file-logging',
             ], $directory);
             $this->validateFile($directory . '/invoice.pdf', $directory);
             $pdf = file_get_contents($directory . '/invoice.pdf');
@@ -117,9 +144,15 @@ PS);
     private function validateFile(string $file, string $directory): void
     {
         [$status, $output] = $this->execute([
-            $this->javaBinary, '-jar', $this->mustangJar,
-            '--action', 'validate', '--source', $file,
-            '--no-notices', '--disable-file-logging',
+            $this->javaBinary,
+            '-jar',
+            $this->mustangJar,
+            '--action',
+            'validate',
+            '--source',
+            $file,
+            '--no-notices',
+            '--disable-file-logging',
         ], $directory);
         $start = strpos($output, '<validation ');
         $end = strrpos($output, '</validation>');
